@@ -40,7 +40,7 @@ node test/sim.js 400 depth=3 risky=1    # depth level, always take the rich vein
 node test/sim.js 400 step=10 patch=6    # try a rule value without editing the engine
 ```
 
-Last measured bot win rates: Sapper about 75%, Gambler 73%, Ghost 68%, Daredevil 83%, Banker 87%, Surveyor 88%, Medic 88%. Depth 1 to 5: 78%, 72%, 61%, 52%, 36%. Human win rates are not measured.
+Last measured bot win rates: Sapper about 79%, Gambler 73%, Ghost 68%, Daredevil 83%, Banker 87%, Surveyor 88%, Medic 88%. Depth 1 to 5: 78%, 72%, 61%, 52%, 40%. Human win rates are not measured.
 
 ## Browser checks and store art
 
