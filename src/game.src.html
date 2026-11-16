@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deepsweep</title>
+<!--FONTS-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jersey+15&display=swap" rel="stylesheet">
+<!--/FONTS-->
+<style>
+/* One visual world, dark only: an arcade cabinet. A slow plasma backdrop under CRT
+   scanlines, chunky panels with hard drop shadows, bright keys that sink when pressed. */
+:root {
+  color-scheme: dark;
+  --bg: #0b141b;
+  --panel: #1a2933;
+  --edge: #070c11;
+  --ink: #f4f0e2;
+  --muted: #a4b6bd;
+  --line: #34474f;
+  --tile: #5d8797;
+  --tile-edge: #33535f;
+  --hole: #111c23;
+  --blue: #45a9e6;
+  --red: #ee5d44;
+  --gold: #f4b93e;
+  --green: #55c887;
+  --font: "Jersey 15", "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  --radius: 10px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+html { font-size: 20px; }
+b, strong { font-weight: 400; color: var(--gold); }
+body { background: var(--bg); color: var(--ink); font: 400 1.05rem/1.25 var(--font); overflow: hidden;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+/* The game scrolls inside itself. Host frames such as itch.io block page scrolling on phones. */
+.scroll { height: 100%; overflow-x: hidden; overflow-y: auto; padding: 14px 14px 56px; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; }
+button { touch-action: manipulation; }
+#bg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: -2; image-rendering: pixelated; }
+body::after {
+  content: ""; position: fixed; inset: 0; z-index: 50; pointer-events: none;
+  background:
+    repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.5) 100%);
+}
+main { max-width: 540px; margin: 0 auto; display: grid; gap: 14px; }
+h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
+h1 { font-size: 2rem; letter-spacing: 0.04em; color: var(--gold); text-shadow: 0 3px 0 var(--edge); display: flex; }
+h1 span { display: inline-block; }
+h2 { font-size: 1.05rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); font-weight: 400; }
+h3 { font-size: 1.3rem; }
+p { margin: 0; }
+[hidden] { display: none !important; }
+
+.top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.hud { display: flex; gap: 14px; align-items: center; font-weight: 400; font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.hearts { display: flex; gap: 7px; align-items: center; }
+.heart { width: 15px; height: 15px; background: var(--red); transform: rotate(45deg); border-radius: 2px; box-shadow: 2px 2px 0 var(--edge); }
+.heart.lost { background: var(--hole); box-shadow: inset 0 0 0 2px var(--line); }
+.coins { display: flex; gap: 7px; align-items: center; color: var(--gold); }
+.coin-dot { width: 16px; height: 16px; border-radius: 50%; background: var(--gold); box-shadow: 0 2px 0 #a8791b; }
+
+.track { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.track span { text-align: center; font-weight: 400; font-size: 0.85rem; padding: 6px 4px; border-radius: 8px; background: var(--hole); color: var(--muted); border: 2px solid var(--line); }
+.track .done { color: var(--green); border-color: var(--green); }
+.track .now { background: var(--gold); color: var(--edge); border-color: var(--gold); }
+
+.panel { background: var(--panel); border: 3px solid var(--edge); border-radius: var(--radius); padding: 14px; display: grid; gap: 12px; box-shadow: 0 6px 0 var(--edge); }
+.boss { background: #3a1a1c; border-color: var(--red); gap: 2px; }
+.boss .tag { font-weight: 400; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--red); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-weight: 400; font-size: 0.85rem; line-height: 1; padding: 6px 9px; border-radius: 7px; background: var(--hole); color: var(--muted); font-variant-numeric: tabular-nums; }
+.chip.warn { color: var(--red); box-shadow: inset 0 0 0 2px var(--red); }
+.chip.done { color: var(--green); }
+.chip.now { color: var(--edge); background: var(--gold); }
+.hint b { color: var(--gold); font-weight: 400; }
+
+.board { --n: 6; display: grid; grid-template-columns: 1.2em repeat(var(--n), 1fr); gap: 5px; width: 100%; max-width: 430px; margin: 0 auto; }
+.board.mini { grid-template-columns: repeat(var(--n), 1fr); max-width: calc(var(--n) * 62px); }
+.axis { display: grid; place-items: center; font-weight: 400; font-size: 0.85rem; color: var(--muted); }
+.axis.hot { color: var(--gold); }
+.cell {
+  aspect-ratio: 1; border-radius: 7px; border: 0; padding: 0; min-height: 0; cursor: pointer;
+  background: var(--tile); color: var(--ink);
+  box-shadow: inset 0 -5px 0 var(--tile-edge), inset 0 2px 0 rgba(255, 255, 255, 0.22);
+  font: 400 calc(min(430px, 86vw) / var(--n) * 0.52) / 1 var(--font);
+  display: grid; place-items: center;
+}
+.board.mini .cell { font-size: 1.9rem; cursor: default; }
+.cell.open { background: var(--hole); box-shadow: inset 0 3px 0 rgba(0, 0, 0, 0.45); cursor: default; }
+.cell.start { box-shadow: inset 0 3px 0 rgba(0, 0, 0, 0.45), inset 0 0 0 2px var(--blue); }
+.cell.trap { background: #47201c; box-shadow: inset 0 0 0 3px var(--red); cursor: default; }
+.cell.trap::after { content: ""; width: 38%; aspect-ratio: 1; background: var(--red); transform: rotate(45deg); border-radius: 3px; }
+.cell.cache { background: #4a3912; box-shadow: inset 0 0 0 3px var(--gold); cursor: default; }
+.cell.cache::after { content: ""; width: 44%; aspect-ratio: 1; background: var(--gold); border-radius: 50%; box-shadow: 0 3px 0 #a8791b; }
+.cell.mark::after { content: ""; border-style: solid; border-width: 0.3em 0 0.3em 0.5em; border-color: transparent transparent transparent var(--gold); margin-top: -4px; }
+.cell.target { box-shadow: inset 0 -5px 0 var(--tile-edge), inset 0 0 0 3px var(--blue); }
+.cell.open.target { box-shadow: inset 0 0 0 3px var(--blue); }
+.cell.coach { outline: 3px solid var(--gold); outline-offset: 1px; }
+.cell.n1 { color: var(--blue); } .cell.n2 { color: var(--green); }
+.cell.n3 { color: var(--gold); } .cell.n4 { color: var(--red); }
+.cell:focus-visible, button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+
+.message { min-height: 1.4em; font-weight: 400; font-size: 1.05rem; }
+.message.bad { color: var(--red); }
+.message.good { color: var(--green); }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+button {
+  --key: var(--blue); --key-edge: #216c9c;
+  font: 400 1.02rem var(--font); color: var(--edge); background: var(--key);
+  border: 0; border-radius: 8px; padding: 9px 14px 11px; cursor: pointer; min-height: 44px;
+  box-shadow: 0 4px 0 var(--key-edge);
+}
+button:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-edge); }
+button.primary { --key: var(--gold); --key-edge: #a8791b; }
+button.go { --key: var(--green); --key-edge: #2c8554; }
+button.danger { --key: var(--red); --key-edge: #a03321; }
+button.quiet { --key: #2c3d47; --key-edge: #131c22; color: var(--ink); }
+button:disabled, button.primary:disabled, button.go:disabled, button.danger:disabled { --key: #3d4b53; --key-edge: #262f35; color: #93a2a8; cursor: not-allowed; }
+button.wide { width: 100%; }
+button.sound { min-height: 34px; padding: 5px 10px 7px; font-size: 0.85rem; }
+.seg { display: inline-flex; gap: 4px; }
+.seg button { --key: #2c3d47; --key-edge: #131c22; color: var(--ink); }
+.seg button[aria-pressed="true"] { --key: var(--blue); --key-edge: #216c9c; color: var(--edge); }
+
+.kit { display: grid; gap: 10px; }
+.item { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; padding: 10px 12px; border-radius: 9px; background: #223642; border: 2px solid var(--edge); box-shadow: 0 4px 0 var(--edge); }
+.item .name { font-weight: 400; font-size: 1.1rem; }
+.item .kind { font-weight: 400; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--blue); margin-left: 8px; }
+.item .kind.gear { color: var(--gold); }
+.item .text { grid-column: 1 / -1; font-size: 0.95rem; color: var(--muted); }
+.item.off { opacity: 0.45; }
+.kitpick { --key: #223642; --key-edge: var(--edge); color: var(--ink); text-align: left; display: grid; gap: 2px; width: 100%; padding: 10px 12px 12px; font-weight: 400; }
+.kitpick .name { font-weight: 400; font-size: 1.1rem; }
+.kitpick .text { font-size: 0.95rem; color: var(--muted); }
+.kitpick .lock { font-size: 0.85rem; color: var(--muted); }
+.kitpick[aria-pressed="true"] { --key: var(--blue); --key-edge: #216c9c; color: var(--edge); }
+.kitpick[aria-pressed="true"] .text { color: var(--edge); }
+.kitpick:disabled { --key: #18242c; color: #7d8d94; }
+.kitpick.buy { --key: #4a3912; --key-edge: #2a2008; }
+.kitpick.buy .lock { color: var(--gold); }
+.empty { color: var(--muted); }
+.coach-box { border: 3px solid var(--gold); border-radius: 9px; padding: 10px 12px; background: #3b2f10; }
+.coach-box b { display: block; font-weight: 400; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gold); margin-bottom: 2px; }
+.big { font-weight: 400; font-size: 2.6rem; line-height: 1; color: var(--gold); text-shadow: 0 4px 0 var(--edge); font-variant-numeric: tabular-nums; }
+.tally { display: grid; gap: 4px; font-size: 1.1rem; font-variant-numeric: tabular-nums; }
+.tally div { display: flex; justify-content: space-between; border-bottom: 2px dotted var(--line); padding-bottom: 2px; }
+.end.win { border-color: var(--green); }
+.end.lose { border-color: var(--red); }
+.unlock { color: var(--gold); font-weight: 400; }
+.rules { font-size: 0.98rem; }
+.rules ol { margin: 0; padding-left: 1.3em; display: grid; gap: 6px; }
+.fine { color: var(--muted); font-size: 0.85rem; }
+.meter { display: flex; align-items: center; gap: 10px; background: var(--hole); border-radius: 9px; padding: 7px 10px; }
+.meter .mult { font-size: 1.7rem; line-height: 1; color: var(--muted); min-width: 1.6em; }
+.meter.hot .mult { color: var(--gold); text-shadow: 0 3px 0 var(--edge); }
+.meter .pips { display: flex; gap: 4px; flex: 1; }
+.meter .pips i { flex: 1; height: 12px; border-radius: 3px; background: var(--line); }
+.meter .pips i.on { background: var(--gold); }
+.meter .fine { white-space: nowrap; }
+.cell.gem::before { content: ""; position: absolute; width: 22%; aspect-ratio: 1; top: 9%; right: 9%; background: var(--blue); transform: rotate(45deg); border-radius: 2px; }
+.cell { position: relative; }
+.choice { --key: #223642; --key-edge: var(--edge); color: var(--ink); text-align: left; display: grid; gap: 2px; width: 100%; padding: 12px 12px 14px; }
+.choice .name { font-size: 1.25rem; }
+.choice .text { font-size: 0.95rem; color: var(--muted); }
+.choice.rich { --key: #4a3912; --key-edge: #2a2008; }
+.choice.rich .name { color: var(--gold); }
+.ach { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 9px 12px; border-radius: 9px; background: var(--hole); }
+.ach .name { font-size: 1.1rem; color: var(--muted); }
+.ach .text { grid-column: 1 / -1; font-size: 0.92rem; color: var(--muted); }
+.ach .state { font-size: 0.85rem; color: var(--muted); }
+.ach.done { background: #1f3a2c; }
+.ach.done .name { color: var(--ink); }
+.ach.done .state { color: var(--green); }
+.stars { color: var(--gold); }
+.reward { color: var(--gold); }
+.share { -webkit-user-select: text; user-select: text; white-space: pre-wrap; background: var(--hole); border-radius: 9px; padding: 10px 12px; font-size: 0.95rem; }
+.depth { display: flex; align-items: center; gap: 10px; }
+.depth .label { flex: 1; text-align: center; font-size: 1.2rem; }
+.depth button { min-width: 48px; }
+.dots { display: flex; gap: 6px; justify-content: center; }
+.dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+.dots i.on { background: var(--gold); }
+
+/* effects layer */
+#fx { position: fixed; inset: 0; z-index: 40; pointer-events: none; overflow: hidden; }
+.pop-text { position: absolute; font: 400 1.7rem var(--font); text-shadow: 0 3px 0 var(--edge); transform: translate(-50%, -50%); white-space: nowrap; }
+.pop-text.gold { color: var(--gold); } .pop-text.red { color: var(--red); } .pop-text.blue { color: var(--blue); } .pop-text.green { color: var(--green); }
+.banner { position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%); font: 400 3rem var(--font); color: var(--gold); text-shadow: 0 5px 0 var(--edge); white-space: nowrap; }
+.bit { position: absolute; width: 9px; height: 9px; border-radius: 2px; }
+.flash { position: absolute; inset: 0; }
+
+@media (prefers-reduced-motion: no-preference) {
+  h1 span { animation: wave 2.6s ease-in-out infinite; animation-delay: calc(var(--k) * 90ms); }
+  .cell.pop { animation: flip 0.34s cubic-bezier(0.3, 1.6, 0.5, 1) backwards; animation-delay: calc(var(--d, 0) * 45ms); }
+  .cell.found { animation: slam 0.4s cubic-bezier(0.3, 1.8, 0.5, 1) backwards; }
+  .cell.coach { animation: pulse 0.9s ease-in-out infinite; }
+  .cell.mark::after { animation: drop 0.2s ease-out; }
+  .shake { animation: shake 0.38s; }
+  .bump { animation: bump 0.36s cubic-bezier(0.3, 1.8, 0.5, 1); }
+  .meter .pips i.new { animation: bump 0.3s cubic-bezier(0.3, 1.8, 0.5, 1); }
+  .deal > * { animation: deal 0.36s cubic-bezier(0.3, 1.4, 0.5, 1) backwards; animation-delay: calc(var(--k, 0) * 70ms); }
+  .item { animation: sway 3.4s ease-in-out infinite; animation-delay: calc(var(--k, 0) * -0.7s); }
+  .deal > .item { animation: deal 0.36s cubic-bezier(0.3, 1.4, 0.5, 1) backwards, sway 3.4s ease-in-out 0.5s infinite; animation-delay: calc(var(--k, 0) * 70ms), calc(0.5s + var(--k, 0) * -0.7s); }
+  .slam { animation: slam 0.45s cubic-bezier(0.3, 1.8, 0.5, 1); }
+  .pop-text { animation: rise 0.9s ease-out forwards; }
+  .banner { animation: bannerIn 1.3s cubic-bezier(0.3, 1.6, 0.5, 1) forwards; }
+  .bit { animation: burst 0.7s ease-out forwards; }
+  .bit.rain { animation: rain 1.6s ease-in forwards; }
+  .flash { animation: flash 0.35s ease-out forwards; }
+  @keyframes wave { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+  @keyframes flip { from { transform: rotateX(90deg) scale(0.8); } 60% { transform: rotateX(-12deg) scale(1.12); } }
+  @keyframes slam { from { transform: scale(1.7) rotate(-8deg); opacity: 0; } 60% { transform: scale(0.92) rotate(2deg); opacity: 1; } }
+  @keyframes pulse { 50% { outline-color: transparent; transform: scale(0.94); } }
+  @keyframes drop { from { transform: translateY(-14px); opacity: 0; } }
+  @keyframes shake { 15% { transform: translate(-8px, 3px) rotate(-1deg); } 30% { transform: translate(7px, -3px) rotate(1deg); } 45% { transform: translate(-5px, 2px); } 60% { transform: translate(4px, -1px); } 80% { transform: translate(-2px, 0); } }
+  @keyframes bump { 40% { transform: scale(1.5); } }
+  @keyframes deal { from { transform: translateY(26px) rotate(-3deg); opacity: 0; } }
+  @keyframes sway { 0%, 100% { transform: rotate(-0.5deg); } 50% { transform: rotate(0.5deg); } }
+  @keyframes rise { from { opacity: 0; transform: translate(-50%, -20%) scale(0.5); } 20% { opacity: 1; transform: translate(-50%, -90%) scale(1.25); } 70% { opacity: 1; } to { opacity: 0; transform: translate(-50%, -220%) scale(1); } }
+  @keyframes bannerIn { from { opacity: 0; transform: translate(-50%, -50%) scale(0.3) rotate(-10deg); } 25% { opacity: 1; transform: translate(-50%, -50%) scale(1.15) rotate(3deg); } 40% { transform: translate(-50%, -50%) scale(1) rotate(0); } 80% { opacity: 1; } to { opacity: 0; transform: translate(-50%, -80%) scale(1); } }
+  @keyframes burst { to { transform: translate(var(--dx), var(--dy)) rotate(200deg); opacity: 0; } }
+  @keyframes rain { from { transform: translateY(-20px); } to { transform: translateY(110vh) rotate(360deg); } }
+  @keyframes flash { from { opacity: 0.45; } to { opacity: 0; } }
+}
+</style>
+</head>
+<body>
+<canvas id="bg" aria-hidden="true"></canvas>
+<div class="scroll" id="scroll">
+<main id="app">
+  <header class="top">
+    <h1 id="logo">DEEPSWEEP</h1>
+    <div class="hud" id="hud" aria-live="polite"></div>
+    <button type="button" class="sound quiet" data-action="sound" id="sound">Sound on</button>
+  </header>
+  <div class="track" id="track" aria-label="Run progress"></div>
+  <section class="panel boss" id="boss" aria-label="Boss of this run"></section>
+  <section id="stage" class="panel" aria-live="polite"></section>
+  <section class="panel" id="kitPanel" aria-labelledby="h-kit">
+    <h2 id="h-kit">Your kit</h2>
+    <div class="kit" id="kit"></div>
+  </section>
+  <section class="panel rules" aria-labelledby="h-rules">
+    <h2 id="h-rules">How to play</h2>
+    <ol>
+      <li>A number counts the buried tiles that touch it. A buried tile is a trap or a cache.</li>
+      <li>Flip every safe tile to clear the floor. A trap costs 1 heart. A cache pays 3 coins.</li>
+      <li>Safe flips in a row build a streak. Every 8 raises your multiplier, up to x5, and a cache pays that many times over. A trap resets the streak.</li>
+      <li>Each floor names a row for one cache and a column for the other. After the floor is clear, flip covered tiles to hunt them, or descend.</li>
+      <li>One gem hides under a safe tile on each floor. It adds 2 to your streak.</li>
+      <li>A dead end is a point where logic runs out. Guess, or spend an item.</li>
+      <li>At each fork, pick the steady path or the rich vein: 1 more trap and 1 more dead end, but caches pay double.</li>
+      <li>Spend coins in the shop between floors. Beat the boss floor to win. Score is every coin you earn plus 5 per heart left. Runs pay stars, and stars buy characters.</li>
+    </ol>
+    <div class="row">
+      <button type="button" class="danger" data-action="restart" id="restart">Abandon run</button>
+      <span class="fine" id="best"></span>
+    </div>
+  </section>
+</main>
+</div>
+<div id="fx" aria-hidden="true"></div>
+
+<script>
+'use strict';
+/*__ENGINE__*/
+/*__RUN__*/
+/*__META__*/
+
+/**
+ * Create a DOM element.
+ * @param {string} tag
+ * @param {Object<string, string|boolean>} [attrs] `class`, `text`, data and aria attributes.
+ * @param {...(Node|string|null)} children
+ * @returns {HTMLElement}
+ */
+function h(tag, attrs = {}, ...children) {
+  const el = document.createElement(tag);
+  for (const [key, value] of Object.entries(attrs)) {
+    if (value === false || value == null) continue;
+    if (key === 'text') el.textContent = value;
+    else if (key === 'class') el.className = value;
+    else if (key === 'disabled') el.disabled = true;
+    else el.setAttribute(key, value === true ? '' : value);
+  }
+  el.append(...children.filter((c) => c != null));
+  return el;
+}
+
+/*__UI__*/
+</script>
+</body>
+</html>
