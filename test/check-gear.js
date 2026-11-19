@@ -93,4 +93,11 @@ const finish = (run, { risky = false, buy = false, caches = false, floors = 99 }
   const lost = new Run(77, { mode: MODE.DAILY }); while (!lost.over) { const t = cells(lost, KIND.TRAP).find((i) => lost.found[i] < 0 && !lost.open[i]); lost.flip(t); }
   const bad = dailyCard(lost, 1, day(12)).split('\n'); assert(bad[1].startsWith('Lost')); assert(bad[2].startsWith('1 \u{1f7e5}\u{1f4a5}')); assert.equal(bad[3], '2 \u2b1c'); assert.equal(bad.length, 6);
   ok('Daily card: floor rows, day streak, calendar days'); }
+{ const run = new Run(4242); assert(!run.hunting); sweep(run); assert(run.cleared && run.hunting, 'a clear floor with buried caches is a hunt');
+  const [a, b] = cells(run, KIND.CACHE); let coins = run.coins; let pay = run.cachePay; assert.equal(pay, RULES.cacheCoins * run.multiplier, 'the streak multiplier counts');
+  run.flip(a); assert.equal(run.coins - coins, pay, 'the first cache pays what was shown'); assert(run.hunting);
+  coins = run.coins; pay = run.cachePay; run.flip(b); assert.equal(run.coins - coins, pay); assert(!run.hunting, 'no cache left, no hunt');
+  const rich = new Run(4243); rich.items.push('crowbar', 'magnet'); sweep(rich); const before = rich.coins; const shown = rich.cachePay; rich.flip(cells(rich, KIND.CACHE)[0]);
+  assert.equal(rich.coins - before, shown, 'gear is counted in the preview'); assert(!rich.has('crowbar'), 'reading the preview does not spend the Crowbar, opening the cache does');
+  ok('Cache hunt: hunting flag, and the pay shown is the pay given'); }
 console.log(n, 'rule tests passed');
