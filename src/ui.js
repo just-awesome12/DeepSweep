@@ -244,6 +244,8 @@ const GUIDE_PAGES = Object.freeze([
 
 /** Page controller. One click listener routes every action. */
 class GameUI {
+  /** Days shown in the daily strip on the title screen. */
+  static STRIP_DAYS = 14;
   static COLS = 'ABCDEFGHIJ';
 
   /** @type {Run|null} */ #run = null;
@@ -258,8 +260,7 @@ class GameUI {
   #confirmAbandon = false;
   /** Safe flips in a row, for the climbing flip sound. */ #pitch = 0;
   /** What the run that just ended paid. @type {RunRewards|null} */ #rewards = null;
-  /** Text of the daily result, once the player asks to share it. */ #shareText = '';
-  #shareNote = '';
+  /** Note under the daily card once the player copies it. */ #shareNote = '';
   /** Changes made by the last action, used once by the next render. */
   #change = GameUI.#noChange();
 
@@ -304,7 +305,6 @@ class GameUI {
     this.#armed = null;
     this.#pitch = 0;
     this.#rewards = null;
-    this.#shareText = '';
     this.#shareNote = '';
   }
 
@@ -377,14 +377,12 @@ class GameUI {
     return this.#profile.buy(character);
   }
 
-  /** Put the daily result on the page and try the clipboard. */
+  /** Copy the daily card. It is already on the page, so it can be copied by hand too. */
   #share() {
     const run = this.#run;
-    const result = run.phase === PHASE.WON ? 'Won' : `Lost on ${run.floor.name.toLowerCase()}`;
-    this.#shareText = `Deepsweep daily ${dailyRun().key}\n${result} as ${run.character.name}\nScore ${run.score}, best multiplier x${run.stats.bestMultiplier}, ${run.stats.caches} caches`;
     this.#shareNote = 'Select the text to copy it.';
     try {
-      navigator.clipboard.writeText(this.#shareText).then(() => {
+      navigator.clipboard.writeText(dailyCard(run, this.#profile.streak())).then(() => {
         this.#shareNote = 'Copied. Paste it anywhere.';
         if (this.#run === run) this.#render();
       }, () => {});
@@ -617,6 +615,21 @@ class GameUI {
     }, sprite('face', character.id, owned ? '' : 'locked'), h('span', { class: 'name', text: character.name }), h('span', { class: 'text', text: character.text }), lock);
   }
 
+  /** @returns {HTMLElement[]} The last two weeks of daily runs and the day streak. */
+  #dailyStrip() {
+    const p = this.#profile;
+    const today = dailyRun().key;
+    const days = Array.from({ length: GameUI.STRIP_DAYS }, (_, k) => dailyRun(new Date(Date.now() - (GameUI.STRIP_DAYS - 1 - k) * 86400000)).key);
+    const streak = p.streak();
+    let note = 'Finish the daily run to start a day streak.';
+    if (streak) note = p.playedDaily(today) ? `Day streak ${streak}. Come back tomorrow.` : `Day streak ${streak}. Play today to keep it.`;
+    return [
+      h('div', { class: 'days', role: 'img', 'aria-label': `Daily runs finished in the last ${GameUI.STRIP_DAYS} days: ${days.filter((key) => p.playedDaily(key)).length}` },
+        ...days.map((key) => h('i', { class: `${p.playedDaily(key) ? 'on' : ''}${key === today ? ' today' : ''}`.trim() }))),
+      h('p', { class: 'empty', text: note }),
+    ];
+  }
+
   /** @returns {HTMLElement[]} */
   #titleView() {
     const p = this.#profile;
@@ -633,6 +646,7 @@ class GameUI {
       h('p', { text: 'Sweep three floors of buried traps and caches, gear up in the shop, and beat the boss floor.' }),
       ...(isNew ? [learn, start] : [start, learn]),
       h('button', { type: 'button', class: 'wide primary', 'data-action': 'start', 'data-kind': 'daily', text: daily && daily.key === today ? `Daily run · best today ${daily.score}` : `Daily run · ${today}` }),
+      ...this.#dailyStrip(),
       h('button', { type: 'button', class: 'wide', 'data-action': 'start', 'data-kind': 'endless', text: `Endless as ${p.character.name}` }),
       h('button', { type: 'button', class: 'wide quiet', 'data-action': 'screen', 'data-to': 'achievements', text: `Achievements · ${p.get('achievements').length} of ${ACHIEVEMENTS.length}` }),
       h('h2', {}, 'Character · ', h('span', { class: 'stars', text: `${p.get('stars')} stars` })),
@@ -911,9 +925,11 @@ class GameUI {
       ...rewards.achievements.map((a) => h('p', { class: 'unlock', text: `Achievement: ${a.name}. ${a.text}` })),
     ];
     const daily = run.mode === MODE.DAILY ? [
-      h('button', { type: 'button', class: 'primary wide', 'data-action': 'share', text: 'Share this result' }),
-      this.#shareText ? h('p', { class: 'share', text: this.#shareText }) : null,
-      this.#shareText ? h('p', { class: 'empty', text: this.#shareNote }) : null,
+      h('h2', { text: 'Your daily dig' }),
+      h('p', { class: 'share', text: dailyCard(run, p.streak()) }),
+      h('p', { class: 'empty', text: 'Each row is a floor: cleared or not, then traps hit, caches opened and gems found.' }),
+      h('button', { type: 'button', class: 'primary wide', 'data-action': 'share', text: 'Copy this result' }),
+      this.#shareNote ? h('p', { class: 'empty', text: this.#shareNote }) : null,
     ] : [];
     return [
       h('h2', { text: `${heading}${run.mode === MODE.DAILY ? ` · daily ${dailyRun().key}` : ''}` }),
