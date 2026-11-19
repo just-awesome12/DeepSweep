@@ -190,6 +190,29 @@ class Fx {
   }
 }
 
+/** Cell order of the portrait sheet, by character or boss id. One 48 px portrait per cell, in one row. */
+const PORTRAITS = Object.freeze(['sapper', 'gambler', 'surveyor', 'daredevil', 'ghost', 'banker', 'medic', 'saboteur', 'brute', 'crusher', 'hoarder', 'jammer', 'toll', 'rust']);
+/** Cell order of the status strip. One 16 px icon per cell. */
+const UI_ICONS = Object.freeze(['heart', 'lost', 'coin', 'trap', 'cache', 'gem', 'mark', 'streak']);
+/** Icons per row of the item sheet. Cells follow the order of ITEMS. */
+const ITEM_SHEET_COLS = 5;
+
+/**
+ * One cell of a sprite sheet, as a decorative element.
+ * @param {'face'|'icon'|'ui'} sheet Portraits, item icons or status icons.
+ * @param {string} id Character or boss id, item id, or a name from UI_ICONS.
+ * @param {string} [extra] Extra classes, such as `big` for double size.
+ * @returns {HTMLElement}
+ */
+function sprite(sheet, id, extra = '') {
+  const index = sheet === 'face' ? PORTRAITS.indexOf(id) : sheet === 'icon' ? ITEMS.findIndex((item) => item.id === id) : UI_ICONS.indexOf(id);
+  const cols = sheet === 'icon' ? ITEM_SHEET_COLS : Infinity;
+  const el = h('span', { class: `spr ${sheet} ${extra}`.trim(), 'aria-hidden': 'true' });
+  el.style.setProperty('--x', index % cols);
+  el.style.setProperty('--y', cols === Infinity ? 0 : Math.floor(index / cols));
+  return el;
+}
+
 /** Pages of the tutorial guide shown before the practice. Board tokens: c covered, c* pointed at, o open, digits, T trap, C cache. */
 const GUIDE_PAGES = Object.freeze([
   {
@@ -201,16 +224,19 @@ const GUIDE_PAGES = Object.freeze([
     title: 'Trap or cache',
     lines: ['A buried tile is a trap or a cache. The numbers do not say which.', 'A trap costs 1 heart. A cache pays 3 coins.', 'Each floor names one row and one column that hold a cache. Flip there for coins, or play it safe.'],
     board: [['T', 'C']],
+    art: [['ui', 'heart'], ['ui', 'trap'], ['ui', 'cache'], ['ui', 'coin']],
   },
   {
     title: 'Survive the run',
     lines: ['You have 3 hearts. A run is three floors, then a boss floor with its own rule.', 'A shop sits between floors. Coins buy single-use tools and lasting gear.', 'Deeper floors have dead ends, where no clue proves a tile safe. Guess, or spend an item.'],
     board: [['1', 'c', 'c'], ['1', '2', 'c*'], ['o', '1', 'c']],
+    art: [['ui', 'heart'], ['ui', 'heart'], ['ui', 'heart'], ['icon', 'probe'], ['icon', 'shield'], ['icon', 'lantern']],
   },
   {
     title: 'Build a streak',
     lines: [`Every safe flip in a row adds to your streak. Every ${RULES.streakStep} raises your multiplier, up to x${RULES.multCap}.`, `A cache pays ${RULES.cacheCoins} coins times the multiplier. A trap resets the streak to zero.`, `A gem hides under one safe tile on each floor. It adds ${RULES.gemStreak} to your streak. Your score is every coin you earn.`],
     board: [['1', '2', 'C'], ['o', '1', 'c']],
+    art: [['ui', 'streak'], ['ui', 'gem'], ['ui', 'coin']],
   },
 ]);
 
@@ -547,8 +573,9 @@ class GameUI {
     const last = this.#guidePage === GUIDE_PAGES.length - 1;
     return [
       h('h2', { text: `Guide · ${this.#guidePage + 1} of ${GUIDE_PAGES.length}` }),
-      h('h3', { text: page.title }),
+      h('div', { class: 'who' }, sprite('face', 'sapper'), h('h3', { text: page.title })),
       GameUI.#miniBoard(page.board),
+      page.art ? h('div', { class: 'art-row' }, ...page.art.map(([sheet, id]) => sprite(sheet, id, sheet === 'ui' ? 'big' : ''))) : null,
       ...page.lines.map((text) => h('p', { text })),
       h('div', { class: 'dots' }, ...GUIDE_PAGES.map((_, k) => h('i', { class: k === this.#guidePage ? 'on' : '' }))),
       h('div', { class: 'row' },
@@ -584,7 +611,7 @@ class GameUI {
     return h('button', {
       type: 'button', class: `kitpick${canBuy ? ' buy' : ''}`, 'data-action': 'character', 'data-id': character.id,
       disabled: !owned && !(canBuy && p.get('stars') >= unlock.cost), 'aria-pressed': String(owned && character === p.character),
-    }, h('span', { class: 'name', text: character.name }), h('span', { class: 'text', text: character.text }), lock);
+    }, sprite('face', character.id, owned ? '' : 'locked'), h('span', { class: 'name', text: character.name }), h('span', { class: 'text', text: character.text }), lock);
   }
 
   /** @returns {HTMLElement[]} */
@@ -624,11 +651,11 @@ class GameUI {
     const { hearts, coins } = run;
     const change = this.#change;
     const hurt = change.events.some((e) => e.type === 'trap' || e.type === 'hurt');
-    const pips = run.practice ? [] : Array.from({ length: run.maxHearts }, (_, k) => h('span', { class: k < hearts ? 'heart' : 'heart lost' }));
+    const pips = run.practice ? [] : Array.from({ length: run.maxHearts }, (_, k) => sprite('ui', k < hearts ? 'heart' : 'lost'));
     const amount = h('span', { text: String(coins) });
     this.#el.hud.replaceChildren(
       h('span', { class: `hearts${hurt ? ' bump' : ''}`, 'aria-label': `${hearts} of ${run.maxHearts} hearts` }, ...pips),
-      h('span', { class: `coins${change.coinsFrom !== null ? ' bump' : ''}`, 'aria-label': `${coins} coins` }, h('span', { class: 'coin-dot' }), amount),
+      h('span', { class: `coins${change.coinsFrom !== null ? ' bump' : ''}`, 'aria-label': `${coins} coins` }, sprite('ui', 'coin'), amount),
     );
     if (change.coinsFrom !== null) this.#fx.countUp(amount, change.coinsFrom, coins);
   }
@@ -649,7 +676,7 @@ class GameUI {
     const immune = run.character.ability === 'ignoreBoss';
     this.#el.boss.replaceChildren(
       h('span', { class: 'tag', text: run.bosses.length > 1 ? 'Bosses of this run' : 'Boss of this run' }),
-      ...run.bosses.flatMap((boss) => [h('h3', { text: boss.name }), h('p', { text: boss.text })]),
+      ...run.bosses.map((boss) => h('div', { class: 'who' }, sprite('face', boss.id, 'big'), h('div', {}, h('h3', { text: boss.name }), h('p', { text: boss.text })))),
       ...(immune ? [h('p', { class: 'empty', text: `${run.character.name} ignores boss rules.` })] : []),
     );
   }
@@ -663,7 +690,7 @@ class GameUI {
     const pips = Array.from({ length: step }, (_, k) => h('i', { class: k < filled ? `on${this.#change.stepped && k === filled - 1 ? ' new' : ''}` : '' }));
     const note = capped ? 'Top multiplier' : `${step - filled} to x${run.multiplier + 1}`;
     return h('div', { class: `meter${run.multiplier > 1 ? ' hot' : ''}`, 'aria-label': `Streak ${run.streak}, cache multiplier ${run.multiplier}` },
-      h('span', { class: 'mult', text: `x${run.multiplier}` }), h('span', { class: 'pips' }, ...pips), h('span', { class: 'fine', text: note }));
+      sprite('ui', 'streak'), h('span', { class: 'mult', text: `x${run.multiplier}` }), h('span', { class: 'pips' }, ...pips), h('span', { class: 'fine', text: note }));
   }
 
   /** @returns {HTMLElement|null} Practice step strip, or null in a real run. */
@@ -794,6 +821,7 @@ class GameUI {
   static #itemCard(id, control, k, extra = '') {
     const item = ITEM_BY_ID[id];
     const card = h('div', { class: `item ${extra}`.trim() },
+      sprite('icon', id),
       h('span', {}, h('span', { class: 'name', text: item.name }), h('span', { class: `kind${item.gear ? ' gear' : ''}`, text: item.gear ? 'Gear' : 'Tool' })),
       control,
       h('span', { class: 'text', text: item.text.replace(/^Gear\. /, '') }));
@@ -847,7 +875,7 @@ class GameUI {
   #gateView() {
     const run = this.#run;
     const immune = run.character.ability === 'ignoreBoss';
-    const parts = [h('h2', { text: 'Boss gate' }), ...run.bosses.map((boss) => h('p', {}, h('b', { text: boss.name }), ` blocks the way. ${boss.text}`))];
+    const parts = [h('h2', { text: 'Boss gate' }), ...run.bosses.map((boss) => h('div', { class: 'who' }, sprite('face', boss.id, 'big'), h('p', {}, h('b', { text: boss.name }), ` blocks the way. ${boss.text}`)))];
     if (immune) parts.push(h('p', { class: 'reward', text: `${run.character.name} walks straight through.` }));
     if (!run.tollSettled) {
       parts.push(h('div', { class: 'row' },
@@ -856,7 +884,7 @@ class GameUI {
     }
     if (run.discardsLeft > 0) {
       parts.push(h('p', { class: 'message', text: `Discard ${run.discardsLeft} more. Tap an item to discard it.` }));
-      parts.push(h('div', { class: 'kit' }, ...run.items.map((id, k) => h('button', { type: 'button', class: 'wide danger', 'data-action': 'sabotage', 'data-i': String(k), text: `Discard ${ITEM_BY_ID[id].name}` }))));
+      parts.push(h('div', { class: 'kit' }, ...run.items.map((id, k) => h('button', { type: 'button', class: 'wide danger with-icon', 'data-action': 'sabotage', 'data-i': String(k) }, sprite('icon', id), `Discard ${ITEM_BY_ID[id].name}`))));
     }
     parts.push(h('button', { type: 'button', class: 'go wide', 'data-action': 'enter', disabled: !run.tollSettled || run.discardsLeft > 0, text: 'Enter the boss floor' }));
     return parts;
@@ -886,7 +914,7 @@ class GameUI {
     ] : [];
     return [
       h('h2', { text: `${heading}${run.mode === MODE.DAILY ? ` · daily ${dailyRun().key}` : ''}` }),
-      h('p', { text: story }),
+      h('div', { class: 'who' }, sprite('face', run.character.id, 'big'), h('p', { text: story })),
       h('div', { class: 'tally' },
         line('Coins earned', run.stats.earned),
         line(`Hearts ${run.hearts} x ${RULES.heartPoints}`, run.hearts * RULES.heartPoints),

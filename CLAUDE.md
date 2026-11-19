@@ -26,6 +26,8 @@ Deepsweep is a Minesweeper roguelike that ships as one self-contained HTML file.
 - Floor 1 must stay solvable by logic alone. Deeper floors carry an exact count of dead ends, checked by `Generator`. A new tile or clue type needs solver support first.
 - The generator caps the enumeration frontier at 22 tiles. Raising it makes some boards very slow.
 - `Profile.KEY` is versioned. Bump it only when the saved shape changes, because that resets every player's progress.
+- The art sheets in `src/art/` are read by cell position. `items.png` follows the order of `ITEMS`; `portraits.png` and `ui.png` follow `PORTRAITS` and `UI_ICONS` in `ui.js`. Add or reorder an item, boss or character and the sheet together. The sources are in the Pixelwright project "Deepsweep".
+- Show sprites at whole-number zoom only (`--z`), or the pixels come out uneven.
 - The game is its own visual identity. Do not copy art, logos or layouts from other games.
 
 ## Style
