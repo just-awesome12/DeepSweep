@@ -25,7 +25,7 @@ tile = lambda k: {'c': '<div class="t c"></div>', 'o': '<div class="t o"></div>'
 COVER = f"""<style>{BASE}
 body {{ width: 630px; height: 500px; color: #f4f0e2; }}
 h1 {{ font: 400 118px/1 "Jersey 15"; margin: 0; letter-spacing: 0.03em; position: absolute; left: 38px; top: 40px; color: #f4b93e; text-shadow: 0 7px 0 #070c11; }}
-p {{ font: 400 31px "Jersey 15"; color: #a4b6bd; margin: 0; position: absolute; left: 42px; top: 150px; }}
+p {{ font: 400 28px "Jersey 15"; color: #a4b6bd; margin: 0; position: absolute; left: 42px; top: 150px; }}
 p b {{ color: #f4f0e2; font-weight: 400; }}
 .g {{ position: absolute; left: 40px; right: 40px; bottom: -50px; display: grid; grid-template-columns: repeat(6, 1fr); gap: 9px; font-size: 52px; transform: rotate(-2deg); }}
 </style><h1>DEEPSWEEP</h1><p>A Minesweeper roguelike. <b>Sweep. Gamble. Descend.</b></p>

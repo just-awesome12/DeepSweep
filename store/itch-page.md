@@ -8,7 +8,7 @@
 - Options to turn on: mobile friendly, fullscreen button, scrollbars
 - Pricing: no payments, or donations
 - Cover image: `cover-630x500.png`
-- Screenshots: `04-floor.png`, `05-shop.png`, `06-fork.png`, `10-title-progress.png`, `09-achievements.png`
+- Screenshots: `04-floor.png`, `07-boss-floor.png`, `05-shop.png`, `10-title-progress.png`, `02-guide.png`
 
 ## Title
 
@@ -24,24 +24,28 @@ A Minesweeper roguelike. Sweep three floors, gamble on buried caches, gear up, a
 
 Every floor buries traps and caches under the same tiles. The numbers tell you how many buried tiles touch them. They do not tell you which ones pay.
 
+- **It teaches you.** A short guide and a coached practice run cover the whole game in 7 steps.
+- **It is fair.** The first floor never needs a guess. Every later floor tells you how many dead ends it holds before you start.
+- **It plays on your phone.** One page in the browser. No account, no ads, no downloads.
+
+**How a run goes**
+
 - **Sweep.** Use the clues to open every safe tile.
 - **Build a streak.** Safe flips in a row raise a multiplier, up to x5. Caches pay that many times over. One trap resets it.
-- **Gamble.** Each floor names one row and one column that hold a cache. Flip for coins, or walk away with your hearts.
+- **Gamble.** Each floor names one row and one column that hold a cache. Once the floor is clear, the game shows what the next cache pays. Flip for it, or walk away with your coins.
 - **Gear up.** Spend coins on 20 tools and gear pieces. Some protect you. Others change the rules.
 - **Choose your way down.** At every fork, take the steady path, or the rich vein where caches pay double.
-- **Beat the boss.** One of 7 bosses is shown at the start of each run. Each one breaks a rule you rely on.
+- **Beat the boss.** One of 7 bosses is shown at the start of each run. Each one breaks a rule you rely on. The Crusher buries tiles you already opened. The Jammer hides your clues.
 
 **More to chase**
 
 - 7 characters with their own rules. Two are free. Earn the rest by winning in a certain way, or buy them with stars from your runs.
 - 21 achievements that point at different ways to play.
 - 5 depth levels. Each adds a rule and raises your score.
-- A daily run on a seed everyone shares, with a result you can copy and post.
+- A daily run on a seed everyone shares. It ends with a result card you can copy and post, and it keeps a day streak.
 - Endless mode for score chasing.
 
-Runs take about 10 minutes. A short guide and a coached practice teach the game in 7 steps.
-
-Plays in the browser on phone and desktop. No account, no ads, no downloads. Progress saves in your browser.
+Runs take about 10 minutes. Plays on phone and desktop. Progress saves in your browser.
 
 ## Controls
 
