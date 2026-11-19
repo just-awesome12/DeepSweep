@@ -55,7 +55,8 @@ h3 { font-size: 1.3rem; }
 p { margin: 0; }
 [hidden] { display: none !important; }
 
-.top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.top { display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap; }
+@media (max-width: 359px) { h1 { font-size: 1.55rem; } }
 .hud { display: flex; gap: 10px; align-items: center; font-weight: 400; font-size: 1.25rem; font-variant-numeric: tabular-nums; }
 .hearts { display: flex; gap: 3px; align-items: center; }
 .coins { display: flex; gap: 4px; align-items: center; color: var(--gold); }
@@ -119,7 +120,7 @@ button.danger { --key: var(--red); --key-edge: #a03321; }
 button.quiet { --key: #2c3d47; --key-edge: #131c22; color: var(--ink); }
 button:disabled, button.primary:disabled, button.go:disabled, button.danger:disabled { --key: #3d4b53; --key-edge: #262f35; color: #93a2a8; cursor: not-allowed; }
 button.wide { width: 100%; }
-button.sound { min-height: 34px; padding: 5px 10px 7px; font-size: 0.85rem; }
+button.sound { min-width: 44px; padding: 8px 10px 10px; display: grid; place-items: center; }
 .seg { display: inline-flex; gap: 4px; }
 .seg button { --key: #2c3d47; --key-edge: #131c22; color: var(--ink); }
 .seg button[aria-pressed="true"] { --key: var(--blue); --key-edge: #216c9c; color: var(--edge); }
@@ -186,13 +187,14 @@ button.sound { min-height: 34px; padding: 5px 10px 7px; font-size: 0.85rem; }
 .dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
 .dots i.on { background: var(--gold); }
 
-/* Pixel art. The build fills in the three sheets as data URLs. --x and --y pick the cell, --z is a whole-number zoom. */
+/* Pixel art. The build fills in the sheets as data URLs. --x and --y pick the cell, --z is a whole-number zoom. */
 /*__ART__*/
 .spr { --y: 0; display: inline-block; flex: none; width: calc(var(--s) * var(--z)); height: calc(var(--s) * var(--z)); background-repeat: no-repeat; image-rendering: pixelated;
   background-size: calc(var(--w) * var(--z)) auto; background-position: calc(var(--x) * var(--s) * var(--z) * -1) calc(var(--y) * var(--s) * var(--z) * -1); }
 .spr.face { --s: 48px; --w: 672px; --z: 1; background-image: var(--art-portraits); }
 .spr.icon { --s: 16px; --w: 80px; --z: 2; background-image: var(--art-items); }
 .spr.ui { --s: 16px; --w: 128px; --z: 1; background-image: var(--art-ui); }
+.spr.snd { --s: 16px; --w: 32px; --z: 1; background-image: var(--art-sound); }
 .spr.big { --z: 2; }
 .who { display: flex; gap: 12px; align-items: center; }
 .who > div { display: grid; gap: 2px; min-width: 0; }
@@ -250,7 +252,7 @@ button.with-icon { display: flex; gap: 10px; align-items: center; justify-conten
   <header class="top">
     <h1 id="logo">DEEPSWEEP</h1>
     <div class="hud" id="hud" aria-live="polite"></div>
-    <button type="button" class="sound quiet" data-action="sound" id="sound">Sound on</button>
+    <button type="button" class="sound quiet" data-action="sound" id="sound" aria-label="Sound on"></button>
   </header>
   <div class="track" id="track" aria-label="Run progress"></div>
   <section class="panel boss" id="boss" aria-label="Boss of this run"></section>
