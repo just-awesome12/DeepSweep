@@ -100,4 +100,26 @@ const finish = (run, { risky = false, buy = false, caches = false, floors = 99 }
   const rich = new Run(4243); rich.items.push('crowbar', 'magnet'); sweep(rich); const before = rich.coins; const shown = rich.cachePay; rich.flip(cells(rich, KIND.CACHE)[0]);
   assert.equal(rich.coins - before, shown, 'gear is counted in the preview'); assert(!rich.has('crowbar'), 'reading the preview does not spend the Crowbar, opening the cache does');
   ok('Cache hunt: hunting flag, and the pay shown is the pay given'); }
+const bossFloor = (seed, id, options) => { for (let s = seed; s < seed + 400; s++) { const run = new Run(s, options); if (run.boss.id !== id) continue;
+  finish(run, { floors: 3 }); while (run.phase !== PHASE.FLOOR || !run.isBossFloor) { if (run.phase === PHASE.SHOP) run.leaveShop(); else if (run.phase === PHASE.PATH) run.choosePath(false); else { run.payToll(false); run.enterBoss(); } }
+  return run; } throw new Error('no run with boss ' + id); };
+const safeOnes = (run) => cells(run, KIND.SAFE).filter((i) => !run.hasRubble(i));
+{ const run = bossFloor(9000, 'crusher'); const hearts = run.hearts; assert.deepEqual(run.bossCountdowns.map((c) => [c.boss.id, c.left]), [['crusher', 4]]);
+  let rubble = []; let guard = 0;
+  while (!rubble.length && guard++ < 40) { run.flip(safeOnes(run)[0]); rubble = [...run.open.keys()].filter((i) => run.hasRubble(i)); }
+  assert.equal(run.bossClock, 4, 'it acts on the fourth safe flip'); assert.equal(rubble.length, 2); assert(/Crusher buries 2 tiles/.test(run.message));
+  assert(rubble.every((i) => run.board.kind(i) === KIND.SAFE && run.board.number(i) > 0), 'only clues it has seen open are buried');
+  const streak = run.streak; const clock = run.bossClock; run.flip(rubble[0]); assert(run.open[rubble[0]]); assert.equal(run.streak, streak, 'digging adds no streak');
+  assert.equal(run.bossClock, clock, 'digging does not bring the next slam closer'); assert.equal(run.hearts, hearts, 'nothing the boss does costs a heart');
+  guard = 0; while (!run.cleared && guard++ < 200) run.flip(cells(run, KIND.SAFE)[0]);
+  assert(run.cleared && run.bossBeaten && !run.bossCountdowns.length, 'the floor can always be finished'); run.descend(); assert.equal(run.phase, PHASE.WON);
+  const ghost = bossFloor(9000, 'crusher', { character: by('ghost') }); for (let k = 0; k < 6 && !ghost.cleared; k++) ghost.flip(safeOnes(ghost)[0]);
+  assert(![...ghost.open.keys()].some((i) => ghost.hasRubble(i)) && !ghost.bossCountdowns.length, 'Ghost ignores it');
+  ok('The Crusher buries open tiles again; digging is safe and free'); }
+{ const run = bossFloor(9500, 'jammer'); let jam = -1; let guard = 0;
+  while (jam < 0 && guard++ < 40) { run.flip(safeOnes(run)[0]); jam = [...run.open.keys()].findIndex((i) => run.isJammed(i)); }
+  assert.equal(run.bossClock, 4); assert(jam >= 0 && run.board.number(jam) > 0); assert(/Jammer jams a clue/.test(run.message));
+  const hearts = run.hearts; const streak = run.streak; assert(run.clearJam(jam)); assert(!run.isJammed(jam));
+  assert.equal(run.streak, Math.max(0, streak - RULES.jamCost)); assert.equal(run.hearts, hearts); assert(!run.clearJam(jam), 'a clear clue cannot be cleared twice');
+  ok('The Jammer hides a clue; clearing it costs streak only'); }
 console.log(n, 'rule tests passed');

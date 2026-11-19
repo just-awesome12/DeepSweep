@@ -33,6 +33,12 @@ function shop(run) {
 
 function floorStep(run) {
   if (run.hearts <= 1 && run.canUse('medkit')) { run.useItem('medkit'); return; }
+  // Undo what a boss did to the board before reading it: dig out rubble, clear jammed clues.
+  const cellsOf = [...run.open.keys()];
+  const rubble = cellsOf.find((i) => run.hasRubble(i));
+  if (rubble !== undefined) { run.flip(rubble); return; }
+  const jam = cellsOf.find((i) => run.isJammed(i));
+  if (jam !== undefined) { run.clearJam(jam); return; }
   const known = Uint8Array.from(run.found, (v) => (v >= 0 ? 1 : 0));
   if (!run.cleared) {
     const solver = new Solver(run.board, run.open, known);

@@ -481,6 +481,8 @@ const RULES = Object.freeze({
   gemsPerFloor: 1,
   /** Safe flips a gem adds to the streak. */
   gemStreak: 2,
+  /** Streak a player gives up to clear a clue the Jammer jammed. */
+  jamCost: 2,
   /** Score bonus for each depth level. */
   depthBonus: 0.2,
 });
@@ -519,11 +521,15 @@ const ITEMS = Object.freeze([
   { id: 'rod', name: 'Dowsing Rod', cost: 8, copies: 1, gear: true, text: 'Gear. When you clear a floor, the cache in the hint row is found and collected.' },
 ].map(Object.freeze));
 
-/** @type {ReadonlyArray<{id:string, name:string, text:string}>} */
+/**
+ * Bosses. `act` marks a boss that also acts on the board: every `every` safe flips it changes `count` tiles.
+ * What each one does is in `Run`. Nothing a boss does to the board costs a heart or hides a tile for good.
+ * @type {ReadonlyArray<{id:string, name:string, text:string, act?:{every:number, count:number}}>}
+ */
 const BOSSES = Object.freeze([
-  { id: 'crusher', name: 'The Crusher', text: 'Each trap costs 2 hearts on this floor.' },
+  { id: 'crusher', name: 'The Crusher', act: Object.freeze({ every: 4, count: 2 }), text: 'Each trap costs 2 hearts on this floor. Every 4 safe flips, it buries 2 open tiles again. Flip them to dig them out.' },
   { id: 'hoarder', name: 'The Hoarder', text: 'You win only after both caches on this floor are found.' },
-  { id: 'jammer', name: 'The Jammer', text: 'No item works on this floor. Gear counts as items.' },
+  { id: 'jammer', name: 'The Jammer', act: Object.freeze({ every: 4, count: 1 }), text: `No item works on this floor. Gear counts as items. Every 4 safe flips, it jams a clue. Tap the clue to clear it for ${RULES.jamCost} streak.` },
   { id: 'toll', name: 'The Tollkeeper', text: 'On entry, pay 3 coins or lose 1 heart.' },
   { id: 'saboteur', name: 'The Saboteur', text: 'On entry, discard half of your items, rounded up. You choose which.' },
   { id: 'rust', name: 'The Rust', text: 'On entry, discard every single-use tool. Gear stays.' },
