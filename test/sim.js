@@ -69,7 +69,7 @@ for (let k = 0; k < RUNS; k++) {
   while (!run.over && guard++ < 3000) {
     if (run.phase === PHASE.SHOP) shop(run);
     else if (run.phase === PHASE.PATH) run.choosePath(Boolean(RISKY));
-    else if (run.phase === PHASE.BOSS_GATE) { run.payToll(run.coins >= 3); while (run.discardsLeft > 0) run.sabotage(run.items.length - 1); run.enterBoss(); }
+    else if (run.phase === PHASE.BOSS_GATE) { run.payToll(run.coins >= 3); while (!run.over && run.discardsLeft > 0) run.sabotage(run.items.length - 1); run.enterBoss(); }
     else floorStep(run);
   }
   const b = (t.boss[run.boss.id] ||= { runs: 0, wins: 0 });

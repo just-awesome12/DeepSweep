@@ -24,7 +24,8 @@ Needs Node 18 or later and Python 3.9 or later.
 | `src/run.js` | `Run`, the rules of one run as a state machine, and `Coach`, the practice-mode advice. No DOM. |
 | `src/meta.js` | Progress between runs: `Profile`, stars, character unlocks, achievements, the daily seed. No DOM. |
 | `src/ui.js` | Sound, backdrop, effects, and `GameUI`, the page controller. |
-| `src/game.src.html` | Page shell and all CSS. The build replaces the `/*__NAME__*/` markers with the scripts. |
+| `src/game.src.html` | Page shell and all CSS. The build replaces the `/*__NAME__*/` markers with the scripts and the art. |
+| `src/art/` | Pixel art sheets: `portraits.png` (14 portraits, 48 px), `items.png` (20 item icons, 16 px, 5 per row), `ui.png` (8 status and tile icons, 16 px). The build inlines them as data URLs. |
 | `test/` | `check-gear.js` (24 rule tests), `check-run.js` (fuzz), `check-coach.js` (practice), `sim.js` (balance bot). |
 | `tools/` | `build.py`, plus browser checks and store art that need Playwright. |
 | `store/itch-page.md` | Store page text and upload settings. |
@@ -40,7 +41,7 @@ node test/sim.js 400 depth=3 risky=1    # depth level, always take the rich vein
 node test/sim.js 400 step=10 patch=6    # try a rule value without editing the engine
 ```
 
-Last measured bot win rates: Sapper about 75%, Gambler 73%, Ghost 68%, Daredevil 83%, Banker 87%, Surveyor 88%, Medic 88%. Depth 1 to 5: 78%, 72%, 61%, 52%, 36%. Human win rates are not measured.
+Last measured bot win rates: Sapper about 79%, Gambler 73%, Ghost 68%, Daredevil 83%, Banker 87%, Surveyor 88%, Medic 88%. Depth 1 to 5: 78%, 72%, 61%, 52%, 40%. Human win rates are not measured.
 
 ## Browser checks and store art
 

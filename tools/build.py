@@ -1,13 +1,16 @@
 """Build the game page twice: dist/index.html (Google Fonts link, one self-contained file)
 and dist/itch/ plus dist/Deepsweep-itch.zip (fonts bundled, no outside requests, for itch.io).
 Run `npm install` first: the bundled font comes from node_modules."""
-import pathlib, re, shutil, zipfile
+import base64, pathlib, re, shutil, zipfile
 
 root = pathlib.Path(__file__).parent.parent
 strip = lambda s: re.sub(r"\n(const Deepsweep = .*\n)?if \(typeof module !== 'undefined'\).*\n", "\n", s)
 html = (root / 'src/game.src.html').read_text()
 for mark, name in (('/*__ENGINE__*/', 'engine.js'), ('/*__RUN__*/', 'run.js'), ('/*__META__*/', 'meta.js'), ('/*__UI__*/', 'ui.js')):
     html = html.replace(mark, strip((root / 'src' / name).read_text()))
+art = ' '.join(f'--art-{name}: url(data:image/png;base64,{base64.b64encode((root / "src/art" / f"{name}.png").read_bytes()).decode()});' for name in ('portraits', 'items', 'ui'))
+assert '/*__ART__*/' in html
+html = html.replace('/*__ART__*/', ':root { ' + art + ' }')
 dist = root / 'dist'
 dist.mkdir(exist_ok=True)
 (dist / 'index.html').write_text(html)
