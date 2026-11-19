@@ -1,6 +1,6 @@
 // Rule tests for the streak multiplier and each rule-changing gear piece.
 const assert = require('assert');
-const { Run, PHASE, MODE, Solver, KIND, RULES, CHARACTERS, Profile, ACHIEVEMENTS, dailyRun, starsFor } = require('./load.js')();
+const { Run, PHASE, MODE, Solver, KIND, RULES, CHARACTERS, Profile, ACHIEVEMENTS, dailyRun, dailyCard, starsFor } = require('./load.js')();
 /** A plain run that starts with the given items. */
 const withItems = (seed, ...items) => { const run = new Run(seed); run.items.push(...items); return run; };
 const cells = (run, kind) => [...run.open.keys()].filter((i) => !run.open[i] && run.found[i] < 0 && run.board.kind(i) === kind);
@@ -82,4 +82,15 @@ const finish = (run, { risky = false, buy = false, caches = false, floors = 99 }
   const r = p.record(finish(one)); assert(r.achievements.some((x) => x.id === 'daily')); assert.equal(p.get('daily').key, dailyRun().key);
   const e = p.record(finish(new Run(5, { mode: MODE.ENDLESS }), { floors: 10 })); assert.equal(p.get('endlessBest'), 10); assert(e.achievements.some((x) => x.id === 'endless10'));
   ok('Daily seed is shared and stable; endless best is tracked'); }
+{ const day = (d) => new Date(`2026-11-${d}T12:00:00Z`); const p = new Profile(null);
+  const play = (d) => { const run = finish(new Run(dailyRun(day(d)).seed, { mode: MODE.DAILY }), { caches: true }); p.record(run, day(d)); return run; };
+  const first = play(10); assert.equal(first.stats.floors.length, 4); assert(first.stats.floors.every((f) => f.cleared && f.caches === 2));
+  assert.equal(p.streak(day(10)), 1); play(10); assert.equal(p.streak(day(10)), 1, 'a second run the same day does not count twice');
+  play(11); const third = play(12); assert.equal(p.streak(day(12)), 3); assert.equal(p.streak(day(13)), 3, 'the streak holds until the next day ends');
+  assert.equal(p.streak(day(14)), 0); play(15); assert.equal(p.streak(day(15)), 1); assert(p.playedDaily('2026-11-11')); assert(!p.playedDaily('2026-11-13'));
+  const card = dailyCard(third, 3, day(12)).split('\n'); assert.equal(card[0], 'Deepsweep daily 2026-11-12'); assert(card[1].startsWith('Won')); assert.equal(card.length, 7);
+  assert(card[2].startsWith('1 \u{1f7e9}') && card[5].startsWith('B \u{1f7e9}')); assert.equal(card[6], 'Day streak 3');
+  const lost = new Run(77, { mode: MODE.DAILY }); while (!lost.over) { const t = cells(lost, KIND.TRAP).find((i) => lost.found[i] < 0 && !lost.open[i]); lost.flip(t); }
+  const bad = dailyCard(lost, 1, day(12)).split('\n'); assert(bad[1].startsWith('Lost')); assert(bad[2].startsWith('1 \u{1f7e5}\u{1f4a5}')); assert.equal(bad[3], '2 \u2b1c'); assert.equal(bad.length, 6);
+  ok('Daily card: floor rows, day streak, calendar days'); }
 console.log(n, 'rule tests passed');

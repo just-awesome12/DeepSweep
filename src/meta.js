@@ -61,6 +61,37 @@ function dailyRun(date = new Date()) {
   return { key, seed: Math.imul(Number(key.replace(/-/g, '')), 2654435761) >>> 0 };
 }
 
+/** @param {string} key A daily key such as 2026-11-19. @returns {string} The key of the day before. */
+function dayBefore(key) {
+  const date = new Date(`${key}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - 1);
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * The daily result as text to share. It shows how each floor went, never where anything was buried.
+ * One row per floor: cleared or not, then one mark for each trap hit, cache opened and gem found.
+ * @param {Run} run A finished daily run.
+ * @param {number} streak Days in a row with a finished daily, today included.
+ * @param {Date} [date]
+ * @returns {string}
+ */
+function dailyCard(run, streak, date = new Date()) {
+  const won = run.phase === PHASE.WON;
+  const rows = FLOORS.map((floor, k) => {
+    const log = run.stats.floors[k];
+    const label = floor.boss ? 'B' : String(k + 1);
+    if (!log) return `${label} \u2b1c`;
+    return `${label} ${log.cleared ? '\u{1f7e9}' : '\u{1f7e5}'}${'\u{1f4a5}'.repeat(log.traps)}${'\u{1f4b0}'.repeat(log.caches)}${'\u{1f48e}'.repeat(log.gems)}`;
+  });
+  return [
+    `Deepsweep daily ${dailyRun(date).key}`,
+    `${won ? 'Won' : 'Lost'} \u00b7 score ${run.score} \u00b7 best x${run.stats.bestMultiplier}`,
+    ...rows,
+    ...(streak > 1 ? [`Day streak ${streak}`] : []),
+  ].join('\n');
+}
+
 /**
  * @typedef {Object} RunRewards
  * @property {number} stars Stars this run paid.
@@ -72,11 +103,15 @@ function dailyRun(date = new Date()) {
 /** Saved progress. Works without storage; progress then lasts for the visit only. */
 class Profile {
   static KEY = 'deepsweep.profile.v2';
+  /** Daily keys kept for the calendar. */
+  static DAYS_KEPT = 60;
   static #defaults() {
     return {
       runs: 0, wins: 0, best: 0, caches: 0, bosses: [], tutorial: false, muted: false, stars: 0,
       character: 'sapper', characters: CHARACTERS.filter((c) => c.unlock.type === 'free').map((c) => c.id),
       depth: 0, depthMax: 0, achievements: [], daily: null, endlessBest: 0,
+      /** Daily keys with a finished daily run, oldest first, and the day streak they make. */
+      dailyDays: [], dailyStreak: 0,
     };
   }
 
@@ -89,7 +124,7 @@ class Profile {
     let saved = null;
     try { saved = JSON.parse((this.#storage && this.#storage.getItem(Profile.KEY)) || 'null'); } catch (err) { /* storage is optional */ }
     this.#data = { ...Profile.#defaults(), ...(saved && typeof saved === 'object' ? saved : {}) };
-    for (const key of ['bosses', 'characters', 'achievements']) {
+    for (const key of ['bosses', 'characters', 'achievements', 'dailyDays']) {
       if (!Array.isArray(this.#data[key])) this.#data[key] = Profile.#defaults()[key];
     }
   }
@@ -118,6 +153,20 @@ class Profile {
   /** @returns {number} The selected depth, never above the highest one unlocked. */
   get depth() { return Math.min(this.#data.depth, this.#data.depthMax); }
 
+  /**
+   * Days in a row with a finished daily run. The streak still counts while today's run is not played yet.
+   * @param {Date} [date]
+   * @returns {number}
+   */
+  streak(date = new Date()) {
+    const { key } = dailyRun(date);
+    const last = this.#data.dailyDays[this.#data.dailyDays.length - 1];
+    return last === key || last === dayBefore(key) ? this.#data.dailyStreak : 0;
+  }
+
+  /** @param {string} key A daily key. @returns {boolean} True when a daily run was finished that day. */
+  playedDaily(key) { return this.#data.dailyDays.includes(key); }
+
   /** @param {string} id @returns {boolean} */
   hasAchievement(id) { return this.#data.achievements.includes(id); }
 
@@ -144,9 +193,10 @@ class Profile {
   /**
    * Record a finished run.
    * @param {Run} run
+   * @param {Date} [date] The day the run counts for.
    * @returns {RunRewards}
    */
-  record(run) {
+  record(run, date = new Date()) {
     const d = this.#data;
     const won = run.phase === PHASE.WON;
     const stars = starsFor(run);
@@ -156,8 +206,12 @@ class Profile {
     d.stars += stars;
     if (run.endless) d.endlessBest = Math.max(d.endlessBest, run.stats.floorsCleared);
     if (run.mode === MODE.DAILY) {
-      const { key } = dailyRun();
+      const { key } = dailyRun(date);
       if (!d.daily || d.daily.key !== key || run.score > d.daily.score) d.daily = { key, score: run.score, won };
+      if (!this.playedDaily(key)) {
+        d.dailyStreak = this.streak(date) + 1;
+        d.dailyDays = [...d.dailyDays, key].slice(-Profile.DAYS_KEPT);
+      }
     }
     let depthUp = false;
     const characters = [];
@@ -189,4 +243,4 @@ class Profile {
   }
 }
 
-if (typeof module !== 'undefined') module.exports = { FEATS, ACHIEVEMENTS, starsFor, dailyRun, Profile };
+if (typeof module !== 'undefined') module.exports = { FEATS, ACHIEVEMENTS, starsFor, dailyRun, dailyCard, Profile };

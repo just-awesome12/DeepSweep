@@ -51,6 +51,8 @@ class Run {
       caches: 0, floorsCleared: 0, marks: 0, flips: 0, bought: 0, itemsUsed: 0, earned: 0, gems: 0,
       bestMultiplier: character.baseMult ?? 1, trapsHit: 0, heartsLost: 0, bestPay: 0, gearPeak: 0,
       fullyMarked: 0, allCacheFloors: 0, riskyPaths: 0, pathChoices: 0,
+      /** One entry per floor entered, in order. @type {{traps:number, caches:number, gems:number, cleared:boolean}[]} */
+      floors: [],
     };
     /** Safe flips in a row. A trap resets it. It carries across floors. */
     this.streak = 0;
@@ -222,6 +224,7 @@ class Run {
     }
     if (this.isBossFloor && !this.bossBeaten) return;
     this.stats.floorsCleared = this.floorIndex + 1;
+    this.#floorLog.cleared = true;
     if (this.cachesFound === this.board.cacheCount) this.stats.allCacheFloors++;
     if (this.isBossFloor) { this.phase = PHASE.WON; this.message = `${this.bosses.map((b) => b.name).join(' and ')} beaten.`; return; }
     const notes = [];
@@ -331,8 +334,12 @@ class Run {
     return this.#deck.splice(0, count);
   }
 
+  /** @returns {{traps:number, caches:number, gems:number, cleared:boolean}} The log entry of the current floor. */
+  get #floorLog() { return this.stats.floors[this.stats.floors.length - 1]; }
+
   #enterFloor(index, risky) {
     this.floorIndex = index;
+    this.stats.floors.push({ traps: 0, caches: 0, gems: 0, cleared: false });
     this.#config = this.practice ? { ...FLOORS[index], risky: false } : floorConfig(index, { depth: this.depth, risky, endless: this.endless });
     const found = Generator.find(this.#config, this.#rng.int(1e9));
     if (!found) throw new Error(`No board found for ${this.#config.name}.`);
@@ -370,6 +377,7 @@ class Run {
     }
     if (!gems) return '';
     this.stats.gems += gems;
+    this.#floorLog.gems += gems;
     this.streak += gems * RULES.gemStreak;
     this.stats.bestMultiplier = Math.max(this.stats.bestMultiplier, this.multiplier);
     return `Gem. +${gems * RULES.gemStreak} streak.`;
@@ -450,6 +458,7 @@ class Run {
     if (this.#gear('crowbar')) { pay *= 2; echo = this.#spend('crowbar'); notes.push('Crowbar'); }
     this.#earn(pay);
     this.stats.caches++;
+    this.#floorLog.caches++;
     this.stats.bestPay = Math.max(this.stats.bestPay, pay);
     this.message = `Cache. +${pay} coins${notes.length ? ` (${notes.join(', ')})` : ''}.${echo}`;
   }
@@ -457,6 +466,7 @@ class Run {
   #hit() {
     const lost = this.streak;
     this.stats.trapsHit++;
+    this.#floorLog.traps++;
     let streakNote = lost >= 3 ? ` Streak of ${lost} lost.` : '';
     if (this.#gear('steady') && !this.#floorState.steadyUsed && this.streak > 0) {
       this.#floorState.steadyUsed = true;
