@@ -129,9 +129,9 @@ class Fx {
   }
 
   /** Floating text that rises from a point. */
-  text(str, at, color) {
+  text(str, at, color, extra = '') {
     if (!at) return;
-    const el = h('span', { class: `pop-text ${color}`, text: str });
+    const el = h('span', { class: `pop-text ${color} ${extra}`.trim(), text: str });
     el.style.left = `${at.x}px`;
     el.style.top = `${at.y}px`;
     this.#add(el, 950);
@@ -153,6 +153,16 @@ class Fx {
       const bit = h('span', { class: 'bit' });
       bit.style.cssText = `left:${at.x - 4}px;top:${at.y - 4}px;background:${Fx.COLORS[color]};--dx:${Math.cos(angle) * reach}px;--dy:${Math.sin(angle) * reach}px`;
       this.#add(bit, 720);
+    }
+  }
+
+  /** Coins thrown up from a point that fall back down, for a big payout. */
+  fountain(at, count = 36) {
+    if (!at) return;
+    for (let k = 0; k < count; k++) {
+      const bit = h('span', { class: 'bit coin' });
+      bit.style.cssText = `left:${at.x - 5}px;top:${at.y - 5}px;--dx:${(Math.random() - 0.5) * 260}px;--up:${-(90 + Math.random() * 150)}px;animation-delay:${Math.random() * 0.25}s`;
+      this.#add(bit, 1500);
     }
   }
 
@@ -244,6 +254,12 @@ const GUIDE_PAGES = Object.freeze([
 
 /** Page controller. One click listener routes every action. */
 class GameUI {
+  /** A cache paying this much gets the full jackpot show. It matches the Jackpot achievement. */
+  static JACKPOT_PAY = 20;
+  /** A cache paying this much gets a bigger burst. */
+  static BIG_PAY = 10;
+  /** A cache chance from this up shows as high during the cache hunt. */
+  static HIGH_CHANCE = 1 / 3;
   /** Days shown in the daily strip on the title screen. */
   static STRIP_DAYS = 14;
   static COLS = 'ABCDEFGHIJ';
@@ -471,7 +487,11 @@ class GameUI {
     let awards = 0;
     for (const event of events) {
       switch (event.type) {
-        case 'cache': fx.text(`+${event.pay}`, at(event.cell), 'gold'); fx.burst(at(event.cell), 'gold', 14); break;
+        case 'cache':
+          if (event.pay >= GameUI.JACKPOT_PAY) { fx.banner(`JACKPOT +${event.pay}`); fx.fountain(at(event.cell)); fx.flash('gold'); }
+          else if (event.pay >= GameUI.BIG_PAY) { fx.text(`+${event.pay}`, at(event.cell), 'gold', 'big'); fx.burst(at(event.cell), 'gold', 26); }
+          else { fx.text(`+${event.pay}`, at(event.cell), 'gold'); fx.burst(at(event.cell), 'gold', 14); }
+          break;
         case 'gem': fx.text(`GEM +${RULES.gemStreak}`, at(event.cell), 'blue'); fx.burst(at(event.cell), 'blue', 10); break;
         case 'trap': fx.text(`-${event.damage}`, at(event.cell), 'red'); fx.burst(at(event.cell), 'red', 16); fx.flash('red'); shake(); break;
         case 'block': fx.text('BLOCKED', at(event.cell), 'blue'); fx.burst(at(event.cell), 'blue', 10); break;
@@ -698,6 +718,17 @@ class GameUI {
     );
   }
 
+  /**
+   * Sort a cache chance into a band. The exact number stays hidden, so the hunt is a call and not a sum.
+   * @param {number|undefined} chance From `cacheOdds`. Undefined for tiles that are open or identified.
+   * @returns {''|'none'|'low'|'high'}
+   */
+  static #band(chance) {
+    if (chance === undefined) return '';
+    if (chance <= 0) return 'none';
+    return chance >= GameUI.HIGH_CHANCE ? 'high' : 'low';
+  }
+
   /** @returns {HTMLElement} Streak meter: multiplier, progress to the next one. */
   #meter() {
     const run = this.#run;
@@ -706,7 +737,7 @@ class GameUI {
     const filled = capped ? step : run.streak % step;
     const pips = Array.from({ length: step }, (_, k) => h('i', { class: k < filled ? `on${this.#change.stepped && k === filled - 1 ? ' new' : ''}` : '' }));
     const note = capped ? 'Top multiplier' : `${step - filled} to x${run.multiplier + 1}`;
-    return h('div', { class: `meter${run.multiplier > 1 ? ' hot' : ''}`, 'aria-label': `Streak ${run.streak}, cache multiplier ${run.multiplier}` },
+    return h('div', { class: `meter${run.multiplier > 1 ? ' hot' : ''}${run.hunting ? ' hunt' : ''}`, 'aria-label': `Streak ${run.streak}, cache multiplier ${run.multiplier}` },
       sprite('ui', 'streak'), h('span', { class: 'mult', text: `x${run.multiplier}` }), h('span', { class: 'pips' }, ...pips), h('span', { class: 'fine', text: note }));
   }
 
@@ -752,14 +783,16 @@ class GameUI {
     ].map((text) => h('span', { class: 'chip', text }));
     if (!run.itemsWork) chips.push(h('span', { class: 'chip warn', text: 'Items jammed' }));
 
-    const grid = h('div', { class: 'board', role: 'grid', 'aria-label': `${run.floor.name} board` });
+    const hunting = run.hunting;
+    const odds = hunting ? cacheOdds(board, run.open, run.found) : null;
+    const grid = h('div', { class: `board${hunting ? ' hunt' : ''}`, role: 'grid', 'aria-label': `${run.floor.name} board` });
     grid.style.setProperty('--n', board.cols);
     grid.append(h('span', { class: 'axis' }));
     for (let c = 0; c < board.cols; c++) grid.append(h('span', { class: `axis${c === col ? ' hot' : ''}`, text: GameUI.COLS[c] }));
     for (let i = 0; i < board.size; i++) {
       const r = Math.floor(i / board.cols);
       if (i % board.cols === 0) grid.append(h('span', { class: `axis${r === row ? ' hot' : ''}`, text: String(r + 1) }));
-      grid.append(this.#cell(i, armed, coached.has(i)));
+      grid.append(this.#cell(i, armed, coached.has(i), odds ? GameUI.#band(odds.get(i)) : ''));
     }
 
     let prompt = run.message;
@@ -768,7 +801,13 @@ class GameUI {
     const tone = /^Trap.*-\d/.test(prompt) ? 'bad' : /^Cache|^Gem|clear/.test(prompt) ? 'good' : '';
     const canLeave = run.isBossFloor && !run.practice ? run.bossBeaten : run.cleared;
     const lastPractice = run.practice && run.floorIndex >= Run.PRACTICE_FLOORS - 1;
-    const leaveText = lastPractice ? 'Finish practice' : run.isBossFloor && !run.practice ? 'Finish the run' : 'Descend to the shop';
+    const walkAway = hunting && !run.practice && !run.isBossFloor;
+    const leaveText = lastPractice ? 'Finish practice' : run.isBossFloor && !run.practice ? 'Finish the run' : walkAway ? `Walk away with ${run.coins} coins` : 'Descend to the shop';
+    const left = board.cacheCount - run.cachesFound;
+    const stake = hunting ? h('div', { class: 'stake' },
+      h('span', { class: 'tag', text: 'Cache hunt' }),
+      h('span', { class: 'pay', text: `+${run.cachePay}` }),
+      h('span', { class: 'fine', text: `The next cache pays this. ${left} ${left === 1 ? 'cache is' : 'caches are'} still buried. Every other covered tile is a trap.` })) : null;
     const extra = run.floor.risky ? ' Caches pay double here.' : '';
 
     return [
@@ -777,6 +816,7 @@ class GameUI {
       this.#coachBox(advice),
       h('div', { class: 'chips' }, ...chips),
       this.#meter(),
+      stake,
       h('p', { class: 'hint' }, 'Cache 1 is in ', h('b', { text: `row ${row + 1}` }), '. Cache 2 is in ', h('b', { text: `column ${GameUI.COLS[col]}` }), `.${extra}`),
       grid,
       h('p', { class: `message ${tone}`.trim(), text: prompt || `${board.safeCount - run.openCount} safe tiles left.` }),
@@ -792,9 +832,10 @@ class GameUI {
    * @param {number} i
    * @param {string|null} armed
    * @param {boolean} coached
+   * @param {''|'none'|'low'|'high'} [band] During the cache hunt, how likely a covered tile is to hold a cache.
    * @returns {HTMLElement}
    */
-  #cell(i, armed, coached) {
+  #cell(i, armed, coached, band = '') {
     const run = this.#run;
     const { board } = run;
     const change = this.#change;
@@ -813,6 +854,7 @@ class GameUI {
     else {
       if (run.marks[i]) { classes.push('mark'); label = 'marked'; }
       if (armed && armed !== 'sonar') classes.push('target');
+      if (band) { classes.push(`odds-${band}`); label += `, ${{ none: 'no cache here', low: 'cache chance low', high: 'cache chance high' }[band]}`; }
     }
     if (i === board.start) classes.push('start');
     if (coached) classes.push('coach');

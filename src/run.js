@@ -86,6 +86,10 @@ class Run {
   get cleared() { return this.openCount === this.board.safeCount; }
   get cachesFound() { return this.found.filter((k) => k === KIND.CACHE).length; }
   get trapsFound() { return this.found.filter((k) => k === KIND.TRAP).length; }
+  /** True while the floor is clear and a cache is still buried: every covered tile left is a trap or a cache. */
+  get hunting() { return this.phase === PHASE.FLOOR && this.cleared && this.cachesFound < this.board.cacheCount; }
+  /** Coins the next cache opened on this floor pays, with the streak, the path and gear counted. */
+  get cachePay() { return this.#cachePay().pay; }
   get lanternReady() { return this.has('lantern') && !this.#floorState.lanternUsed; }
 
   /** Score: every coin earned plus points for hearts left, raised by the depth bonus. */
@@ -447,15 +451,22 @@ class Run {
     return kind;
   }
 
-  #collect() {
+  /** @returns {{pay:number, notes:string[], crowbar:boolean}} What a cache pays now, and why. Spends nothing. */
+  #cachePay() {
     let pay = this.cacheCoins;
     const notes = [];
     if (this.#gear('magnet')) { pay += 1; notes.push('Magnet'); }
     if (this.multiplier > 1) { pay *= this.multiplier; notes.push(`x${this.multiplier} streak`); }
     if (this.#config.risky) { pay *= 2; notes.push('rich vein'); }
     if (this.#gear('die')) { pay *= 2; notes.push('Loaded Die'); }
-    let echo = '';
-    if (this.#gear('crowbar')) { pay *= 2; echo = this.#spend('crowbar'); notes.push('Crowbar'); }
+    const crowbar = this.#gear('crowbar');
+    if (crowbar) { pay *= 2; notes.push('Crowbar'); }
+    return { pay, notes, crowbar };
+  }
+
+  #collect() {
+    const { pay, notes, crowbar } = this.#cachePay();
+    const echo = crowbar ? this.#spend('crowbar') : '';
     this.#earn(pay);
     this.stats.caches++;
     this.#floorLog.caches++;
