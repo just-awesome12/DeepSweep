@@ -194,18 +194,20 @@ class Fx {
 const PORTRAITS = Object.freeze(['sapper', 'gambler', 'surveyor', 'daredevil', 'ghost', 'banker', 'medic', 'saboteur', 'brute', 'crusher', 'hoarder', 'jammer', 'toll', 'rust']);
 /** Cell order of the status strip. One 16 px icon per cell. */
 const UI_ICONS = Object.freeze(['heart', 'lost', 'coin', 'trap', 'cache', 'gem', 'mark', 'streak']);
+/** Cell order of the sound button strip. */
+const SOUND_ICONS = Object.freeze(['on', 'off']);
 /** Icons per row of the item sheet. Cells follow the order of ITEMS. */
 const ITEM_SHEET_COLS = 5;
 
 /**
  * One cell of a sprite sheet, as a decorative element.
- * @param {'face'|'icon'|'ui'} sheet Portraits, item icons or status icons.
- * @param {string} id Character or boss id, item id, or a name from UI_ICONS.
+ * @param {'face'|'icon'|'ui'|'snd'} sheet Portraits, item icons, status icons or the sound button strip.
+ * @param {string} id Character or boss id, item id, or a name from UI_ICONS or SOUND_ICONS.
  * @param {string} [extra] Extra classes, such as `big` for double size.
  * @returns {HTMLElement}
  */
 function sprite(sheet, id, extra = '') {
-  const index = sheet === 'face' ? PORTRAITS.indexOf(id) : sheet === 'icon' ? ITEMS.findIndex((item) => item.id === id) : UI_ICONS.indexOf(id);
+  const index = sheet === 'face' ? PORTRAITS.indexOf(id) : sheet === 'icon' ? ITEMS.findIndex((item) => item.id === id) : (sheet === 'snd' ? SOUND_ICONS : UI_ICONS).indexOf(id);
   const cols = sheet === 'icon' ? ITEM_SHEET_COLS : Infinity;
   const el = h('span', { class: `spr ${sheet} ${extra}`.trim(), 'aria-hidden': 'true' });
   el.style.setProperty('--x', index % cols);
@@ -517,7 +519,8 @@ class GameUI {
     const inRun = Boolean(run);
     const playing = inRun && !run.practice;
     const change = this.#change;
-    el.sound.textContent = this.#sfx.muted ? 'Sound off' : 'Sound on';
+    el.sound.replaceChildren(sprite('snd', this.#sfx.muted ? 'off' : 'on'));
+    el.sound.setAttribute('aria-label', this.#sfx.muted ? 'Sound off' : 'Sound on');
     el.sound.setAttribute('aria-pressed', String(!this.#sfx.muted));
     el.hud.hidden = !inRun;
     el.track.hidden = !playing || run.endless;

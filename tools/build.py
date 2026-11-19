@@ -8,7 +8,7 @@ strip = lambda s: re.sub(r"\n(const Deepsweep = .*\n)?if \(typeof module !== 'un
 html = (root / 'src/game.src.html').read_text()
 for mark, name in (('/*__ENGINE__*/', 'engine.js'), ('/*__RUN__*/', 'run.js'), ('/*__META__*/', 'meta.js'), ('/*__UI__*/', 'ui.js')):
     html = html.replace(mark, strip((root / 'src' / name).read_text()))
-art = ' '.join(f'--art-{name}: url(data:image/png;base64,{base64.b64encode((root / "src/art" / f"{name}.png").read_bytes()).decode()});' for name in ('portraits', 'items', 'ui'))
+art = ' '.join(f'--art-{name}: url(data:image/png;base64,{base64.b64encode((root / "src/art" / f"{name}.png").read_bytes()).decode()});' for name in ('portraits', 'items', 'ui', 'sound'))
 assert '/*__ART__*/' in html
 html = html.replace('/*__ART__*/', ':root { ' + art + ' }')
 dist = root / 'dist'
