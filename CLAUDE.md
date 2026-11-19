@@ -24,6 +24,7 @@ Deepsweep is a Minesweeper roguelike that ships as one self-contained HTML file.
 - The page must scroll inside `.scroll`, not on the body. Host frames such as itch.io block page scrolling on phones. `tools/check-frame.py` guards this.
 - The font is Jersey 15, weight 400 only. Do not add bold weights or `font-weight` above 400. An earlier pixel font made C read as O and 5 as S.
 - Floor 1 must stay solvable by logic alone. Deeper floors carry an exact count of dead ends, checked by `Generator`. A new tile or clue type needs solver support first.
+- A boss that acts on the board (`act` in `BOSSES`) must never cost a heart or hide a tile for good. The Crusher's rubble and the Jammer's jammed clue can always be undone safely, which is what keeps the dead-end count true. The balance bot in `test/sim.js` undoes them before it reads the board.
 - The generator caps the enumeration frontier at 22 tiles. Raising it makes some boards very slow.
 - `Profile.KEY` is versioned. Bump it only when the saved shape changes, because that resets every player's progress.
 - The art sheets in `src/art/` are read by cell position. `items.png` follows the order of `ITEMS`; `portraits.png` and `ui.png` follow `PORTRAITS` and `UI_ICONS` in `ui.js`. Add or reorder an item, boss or character and the sheet together. The sources are in the Pixelwright project "Deepsweep".

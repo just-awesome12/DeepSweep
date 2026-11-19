@@ -334,6 +334,7 @@ class GameUI {
     const before = run && {
       board: run.board, open: Uint8Array.from(run.open), found: Int8Array.from(run.found), gemTaken: Uint8Array.from(run.gemTaken),
       hearts: run.hearts, coins: run.coins, phase: run.phase, cleared: run.cleared, marks: run.marks.join(''),
+      jammed: [...run.open.keys()].filter((i) => run.isJammed(i)),
       streak: run.streak, multiplier: run.multiplier, goals: run.practice ? Coach.GOALS.filter((g) => g.done(run)).length : 0,
     };
     if (action !== 'restart') this.#confirmAbandon = false;
@@ -444,7 +445,12 @@ class GameUI {
     else if (traps.length && origin >= 0 && /^Trap/.test(run.message)) events.push({ type: 'block', cell: traps[0] });
     else if (lostHearts > 0) events.push({ type: 'hurt' });
     const multUp = run.multiplier > before.multiplier;
-    const streakLost = before.streak >= 3 && run.streak < before.streak;
+    const buried = sameBoard ? [...run.open.keys()].filter((i) => before.open[i] && run.hasRubble(i)) : [];
+    const jams = sameBoard ? [...run.open.keys()].filter((i) => run.isJammed(i) && !before.jammed.includes(i)) : [];
+    const jamCleared = sameBoard && before.jammed.some((i) => !run.isJammed(i));
+    if (buried.length) events.push({ type: 'bossAct', boss: 'crusher', cells: buried, text: 'SLAM' });
+    if (jams.length) events.push({ type: 'bossAct', boss: 'jammer', cells: jams, text: 'JAMMED' });
+    const streakLost = !jamCleared && before.streak >= 3 && run.streak < before.streak;
     if (multUp) events.push({ type: 'mult', value: run.multiplier });
     if (streakLost) events.push({ type: 'streakLost', text: run.streak ? 'STREAK HALVED' : 'STREAK LOST' });
     if (justCleared) events.push({ type: 'clear' });
@@ -455,6 +461,7 @@ class GameUI {
     let sound = 'tap';
     if (ended) sound = run.phase === PHASE.WON ? 'win' : 'lose';
     else if (lostHearts > 0) sound = 'trap';
+    else if (buried.length || jams.length) sound = 'block';
     else if (streakLost) sound = 'lost';
     else if (events.some((e) => e.type === 'block')) sound = 'block';
     else if (run.coins > before.coins) sound = 'cache';
@@ -496,6 +503,14 @@ class GameUI {
         case 'trap': fx.text(`-${event.damage}`, at(event.cell), 'red'); fx.burst(at(event.cell), 'red', 16); fx.flash('red'); shake(); break;
         case 'block': fx.text('BLOCKED', at(event.cell), 'blue'); fx.burst(at(event.cell), 'blue', 10); break;
         case 'hurt': fx.flash('red'); shake(); break;
+        case 'bossAct': {
+          fx.banner(event.text, 'red');
+          event.cells.forEach((cell) => fx.burst(at(cell), event.boss === 'crusher' ? 'red' : 'blue', 10));
+          shake();
+          const face = this.#el.boss.querySelector(`.spr[data-boss="${event.boss}"]`);
+          if (face) { face.classList.add('lunge'); setTimeout(() => face.classList.remove('lunge'), 600); }
+          break;
+        }
         case 'clear': fx.banner('FLOOR CLEAR', 'green'); break;
         case 'mult': fx.text(`x${event.value} MULTIPLIER`, meter(), 'gold'); fx.burst(Fx.center(stage.querySelector('.meter .mult')), 'gold', 10); break;
         case 'streakLost': fx.text(event.text, meter(), 'red'); break;
@@ -519,7 +534,8 @@ class GameUI {
       if (run.useItem(this.#armed, i)) this.#armed = null;
       return;
     }
-    if (this.#markMode) run.toggleMark(i);
+    if (run.isJammed(i)) run.clearJam(i);
+    else if (this.#markMode) run.toggleMark(i);
     else if (!run.marks[i]) run.flip(i);
   }
 
@@ -713,7 +729,11 @@ class GameUI {
     const immune = run.character.ability === 'ignoreBoss';
     this.#el.boss.replaceChildren(
       h('span', { class: 'tag', text: run.bosses.length > 1 ? 'Bosses of this run' : 'Boss of this run' }),
-      ...run.bosses.map((boss) => h('div', { class: 'who' }, sprite('face', boss.id, 'big'), h('div', {}, h('h3', { text: boss.name }), h('p', { text: boss.text })))),
+      ...run.bosses.map((boss) => {
+        const face = sprite('face', boss.id, 'big');
+        face.dataset.boss = boss.id;
+        return h('div', { class: 'who' }, face, h('div', {}, h('h3', { text: boss.name }), h('p', { text: boss.text })));
+      }),
       ...(immune ? [h('p', { class: 'empty', text: `${run.character.name} ignores boss rules.` })] : []),
     );
   }
@@ -782,6 +802,7 @@ class GameUI {
       run.floor.stalls ? `Dead ends ${run.floor.stalls}` : 'No dead ends',
     ].map((text) => h('span', { class: 'chip', text }));
     if (!run.itemsWork) chips.push(h('span', { class: 'chip warn', text: 'Items jammed' }));
+    run.bossCountdowns.forEach(({ boss, left }) => chips.push(h('span', { class: `chip${left === 1 ? ' warn' : ''}`, text: `${boss.name.replace(/^The /, '')} acts in ${left}` })));
 
     const hunting = run.hunting;
     const odds = hunting ? cacheOdds(board, run.open, run.found) : null;
@@ -845,13 +866,16 @@ class GameUI {
     if (run.open[i]) {
       const n = board.number(i);
       classes.push('open');
-      if (n) { text = String(n); classes.push(`n${Math.min(n, 4)}`); }
-      label = n ? `clue ${n}` : 'blank';
+      const jammed = run.isJammed(i);
+      if (jammed) { text = '?'; classes.push('jam'); }
+      else if (n) { text = String(n); classes.push(`n${Math.min(n, 4)}`); }
+      label = jammed ? 'jammed clue, tap to clear it' : n ? `clue ${n}` : 'blank';
       if (run.hasGem(i)) { classes.push('gem'); label += ', gem found'; }
       if (armed === 'sonar' && n) classes.push('target');
     } else if (run.found[i] === KIND.TRAP) { classes.push('trap'); label = 'trap'; }
     else if (run.found[i] === KIND.CACHE) { classes.push('cache'); label = 'cache'; }
     else {
+      if (run.hasRubble(i)) { classes.push('rubble'); label = 'rubble, safe to dig out'; }
       if (run.marks[i]) { classes.push('mark'); label = 'marked'; }
       if (armed && armed !== 'sonar') classes.push('target');
       if (band) { classes.push(`odds-${band}`); label += `, ${{ none: 'no cache here', low: 'cache chance low', high: 'cache chance high' }[band]}`; }

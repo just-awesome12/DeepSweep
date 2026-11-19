@@ -128,6 +128,22 @@ class Run {
   /** @param {string} id @returns {boolean} */
   has(id) { return this.items.includes(id); }
 
+  /** @param {number} i @returns {boolean} True for a safe tile the Crusher buried again. Flipping it is always safe. */
+  hasRubble(i) { return this.rubble[i] === 1 && !this.open[i]; }
+
+  /** @param {number} i @returns {boolean} True for an open clue the Jammer has hidden. */
+  isJammed(i) { return this.jammed[i] === 1 && this.open[i] === 1; }
+
+  /**
+   * Bosses that act on this floor, with the safe flips left before each acts. Empty once the floor is clear.
+   * @returns {{boss:{id:string, name:string}, left:number}[]}
+   */
+  get bossCountdowns() {
+    if (this.phase !== PHASE.FLOOR || !this.isBossFloor || this.cleared) return [];
+    return this.bosses.filter((boss) => boss.act && this.#facesBoss(boss.id))
+      .map((boss) => ({ boss, left: boss.act.every - (this.bossClock % boss.act.every) }));
+  }
+
   /** @param {number} i @returns {boolean} True when an open tile gave up a gem. */
   hasGem(i) { return this.gemTaken[i] === 1; }
 
@@ -154,6 +170,7 @@ class Run {
   flip(i) {
     if (!this.#isCovered(i)) return;
     this.marks[i] = 0;
+    if (this.hasRubble(i)) { this.#dig(i); return; }
     const kind = this.board.kind(i);
     const firstStep = this.#gear('first') && !this.#floorState.firstUsed;
     this.#floorState.firstUsed = true;
@@ -162,11 +179,54 @@ class Run {
       this.streak++;
       this.stats.bestMultiplier = Math.max(this.stats.bestMultiplier, this.multiplier);
       this.#openSafe(i);
+      this.#bossTick(i);
     } else if (kind === KIND.CACHE) { this.found[i] = KIND.CACHE; this.#collect(); }
     else if (firstStep) {
       this.found[i] = KIND.TRAP;
       this.message = `Trap. First Step disarms it.${this.#bounty()}`;
     } else { this.found[i] = KIND.TRAP; this.#hit(); }
+  }
+
+  /**
+   * Clear a clue the Jammer hid. It costs streak, never hearts.
+   * @param {number} i
+   * @returns {boolean} True when a jam was cleared.
+   */
+  clearJam(i) {
+    if (this.phase !== PHASE.FLOOR || !this.isJammed(i)) return false;
+    this.jammed[i] = 0;
+    const cost = Math.min(this.streak, RULES.jamCost);
+    this.streak -= cost;
+    this.message = cost ? `Clue cleared. -${cost} streak.` : 'Clue cleared.';
+    return true;
+  }
+
+  /** Open a tile the Crusher buried. It was already found safe, so it adds no streak and does not move a boss closer to acting. */
+  #dig(i) {
+    this.open[i] = 1;
+    this.rubble[i] = 0;
+    this.message = this.cleared ? this.#clearText() : 'Dug out.';
+    this.#onClear();
+  }
+
+  /** Count one safe flip on the boss floor and let each boss act when its turn comes. @param {number} flipped The tile just flipped. */
+  #bossTick(flipped) {
+    if (!this.isBossFloor || this.cleared) return;
+    this.bossClock++;
+    for (const boss of this.bosses) {
+      if (!boss.act || !this.#facesBoss(boss.id) || this.bossClock % boss.act.every) continue;
+      const clues = [...this.open.keys()].filter((i) => this.open[i] && i !== flipped && this.board.number(i) > 0);
+      if (boss.id === 'crusher') {
+        const buried = this.#rng.shuffle(clues).slice(0, boss.act.count);
+        buried.forEach((i) => { this.open[i] = 0; this.rubble[i] = 1; });
+        if (buried.length) this.message = `${this.message} The Crusher buries ${buried.length} ${buried.length === 1 ? 'tile' : 'tiles'}.`.trim();
+      } else if (boss.id === 'jammer') {
+        const edge = clues.filter((i) => !this.jammed[i] && this.board.neighbors(i).some((n) => !this.open[n] && this.found[n] < 0));
+        const hit = this.#rng.shuffle(edge).slice(0, boss.act.count);
+        hit.forEach((i) => { this.jammed[i] = 1; });
+        if (hit.length) this.message = `${this.message} The Jammer jams a clue.`.trim();
+      }
+    }
   }
 
   /** Toggle the player's own mark on a covered tile. @param {number} i */
@@ -354,6 +414,12 @@ class Run {
     this.found = new Int8Array(this.board.size).fill(-1);
     this.marks = new Uint8Array(this.board.size);
     this.gemTaken = new Uint8Array(this.board.size);
+    /** Safe tiles the Crusher buried again. Read through `hasRubble`. */
+    this.rubble = new Uint8Array(this.board.size);
+    /** Clues the Jammer hid. Read through `isJammed`. */
+    this.jammed = new Uint8Array(this.board.size);
+    /** Safe flips made on this floor that count toward a boss acting. */
+    this.bossClock = 0;
     this.#floorState = Run.#freshFloorState();
     this.board.flood(this.board.start, this.open);
     const hidden = (kind) => [...this.open.keys()].filter((i) => !this.open[i] && this.board.kind(i) === kind);
