@@ -44,6 +44,11 @@ async def main():
         pg.on('console', lambda m: errs.append(m.text) if m.type == 'error' else None)
         await pg.goto(f'file://{ROOT}/dist/itch/index.html'); await pg.wait_for_timeout(900)
         shot = lambda name: pg.screenshot(path=str(ART / f'{name}.png'))
+        async def play_shot(name):
+            """A floor shot. Scroll the game so the boss panel is at the top and the companion under the board is in view."""
+            await pg.evaluate("document.getElementById('scroll').scrollTop = document.getElementById('boss').offsetTop - 14")
+            await pg.wait_for_timeout(200); await shot(name)
+            await pg.evaluate("document.getElementById('scroll').scrollTop = 0")
         await shot('01-title')
         # guide pages, then the whole practice by following the coach
         await pg.click('[data-action="screen"][data-to="guide"]'); await pg.wait_for_timeout(500); await shot('02-guide')
@@ -69,10 +74,10 @@ async def main():
                 info = await pg.evaluate("(() => { const r = window.deepsweep.run; return r ? [r.phase, r.floorIndex, r.items.length, r.openCount] : null; })()")
                 if info is None: break
                 phase, floor, items, opened = info
-                if phase == 'floor' and floor == 1 and opened > 18 and 'floor' not in got: got.add('floor'); await pg.wait_for_timeout(1600); await shot('04-floor')
+                if phase == 'floor' and floor == 1 and opened > 18 and 'floor' not in got: got.add('floor'); await pg.wait_for_timeout(1600); await play_shot('04-floor')
                 if phase == 'shop' and state != 'shop' and 'shop' not in got and floor >= 1: got.add('shop'); await pg.wait_for_timeout(1600); await shot('05-shop')
                 if phase == 'path' and state != 'path' and 'fork' not in got: got.add('fork'); await pg.wait_for_timeout(900); await shot('06-fork')
-                if phase == 'floor' and floor == 3 and opened > 16 and 'boss' not in got: got.add('boss'); await pg.wait_for_timeout(1600); await shot('07-boss-floor')
+                if phase == 'floor' and floor == 3 and opened > 16 and 'boss' not in got: got.add('boss'); await pg.wait_for_timeout(1600); await play_shot('07-boss-floor')
                 if phase in ('won', 'lost'):
                     if phase == 'won':
                         wins += 1
