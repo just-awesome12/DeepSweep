@@ -1027,6 +1027,42 @@ class GameUI {
     return parts;
   }
 
+  /**
+   * The daily result as a picture card: who played, the score, one row per floor and what the companion says.
+   * It shows the same facts as the text from `dailyCard`, never where anything was buried.
+   * @param {boolean} won
+   * @returns {HTMLElement}
+   */
+  #dailyCard(won) {
+    const run = this.#run;
+    const streak = this.#profile.streak();
+    const marks = (kind, count) => Array.from({ length: count }, () => sprite('ui', kind));
+    const rows = FLOORS.map((floor, k) => {
+      const log = run.stats.floors[k];
+      const state = !log ? 'Not reached' : log.cleared ? 'Cleared' : 'Not cleared';
+      const said = log ? `${state}, ${log.traps} traps hit, ${log.caches} caches, ${log.gems} gems` : state;
+      return h('div', { class: 'floor', role: 'img', 'aria-label': `${floor.boss ? 'Boss floor' : floor.name}: ${said}` },
+        h('span', { class: floor.boss ? 'name hot' : 'name', text: floor.boss ? 'Boss' : floor.name }),
+        h('i', { class: !log ? '' : log.cleared ? 'ok' : 'bad' }),
+        ...(log ? [...marks('trap', log.traps), ...marks('cache', log.caches), ...marks('gem', log.gems)] : []));
+    });
+    const chips = [
+      `Best x${run.stats.bestMultiplier}`,
+      `${run.hearts} ${run.hearts === 1 ? 'heart' : 'hearts'} left`,
+      `${run.stats.caches} ${run.stats.caches === 1 ? 'cache' : 'caches'}`,
+      streak > 1 ? `Day streak ${streak}` : '',
+    ].filter(Boolean).map((text) => h('span', { class: 'chip', text }));
+    const story = won ? `${run.character.name} beats ${run.boss.name}` : `${run.character.name} falls on ${run.floor.boss ? 'the boss floor' : run.floor.name.toLowerCase()}`;
+    return h('div', { class: `card ${won ? 'win' : 'lose'}` },
+      h('div', { class: 'row' }, h('span', { class: 'brand', text: 'DEEPSWEEP' }), h('span', { class: 'tag', text: `Daily \u00b7 ${dailyRun().key}` })),
+      h('div', { class: 'who' },
+        h('span', { class: 'frame' }, sprite('face', run.character.id, 'big')),
+        h('div', {}, h('span', { class: 'tag result', text: won ? 'Run won' : 'Run lost' }), h('span', { class: 'big', text: String(run.score) }), h('span', { class: 'fine', text: story }))),
+      h('div', { class: 'floors' }, ...rows),
+      h('div', { class: 'chips' }, ...chips),
+      h('p', { class: 'bubble up' }, this.#buddyText));
+  }
+
   /** @param {boolean} won @returns {HTMLElement[]} */
   #endView(won) {
     const run = this.#run;
@@ -1044,16 +1080,18 @@ class GameUI {
       ...rewards.characters.map((c) => h('p', { class: 'unlock', text: `New character: ${c.name}. ${c.text}` })),
       ...rewards.achievements.map((a) => h('p', { class: 'unlock', text: `Achievement: ${a.name}. ${a.text}` })),
     ];
-    const daily = run.mode === MODE.DAILY ? [
+    const isDaily = run.mode === MODE.DAILY;
+    const daily = isDaily ? [
       h('h2', { text: 'Your daily dig' }),
-      h('p', { class: 'share', text: dailyCard(run, p.streak()) }),
+      this.#dailyCard(won),
       h('p', { class: 'empty', text: 'Each row is a floor: cleared or not, then traps hit, caches opened and gems found.' }),
-      h('button', { type: 'button', class: 'primary wide', 'data-action': 'share', text: 'Copy this result' }),
+      h('button', { type: 'button', class: 'primary wide', 'data-action': 'share', text: 'Copy this result as text' }),
       this.#shareNote ? h('p', { class: 'empty', text: this.#shareNote }) : null,
+      this.#shareNote ? h('p', { class: 'share', text: dailyCard(run, p.streak()) }) : null,
     ] : [];
     return [
       h('h2', { text: `${heading}${run.mode === MODE.DAILY ? ` · daily ${dailyRun().key}` : ''}` }),
-      this.#buddyDock(),
+      isDaily ? null : this.#buddyDock(),
       h('p', { text: story }),
       h('div', { class: 'tally' },
         line('Coins earned', run.stats.earned),
