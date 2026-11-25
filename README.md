@@ -20,13 +20,13 @@ Needs Node 18 or later and Python 3.9 or later.
 
 | Path | What it holds |
 | --- | --- |
-| `src/engine.js` | Seeded boards, the logic-only solver, the board generator, and all game data: floors, items, bosses, characters, depth levels. No DOM. |
+| `src/engine.js` | Seeded boards, the logic-only solver, the board generator, and all game data: floors, items, bosses, characters and their voice lines, depth levels. No DOM. |
 | `src/run.js` | `Run`, the rules of one run as a state machine, and `Coach`, the practice-mode advice. No DOM. |
 | `src/meta.js` | Progress between runs: `Profile`, stars, character unlocks, achievements, the daily seed. No DOM. |
 | `src/ui.js` | Sound, backdrop, effects, and `GameUI`, the page controller. |
 | `src/game.src.html` | Page shell and all CSS. The build replaces the `/*__NAME__*/` markers with the scripts and the art. |
-| `src/art/` | Pixel art sheets: `portraits.png` (14 portraits, 48 px), `items.png` (20 item icons, 16 px, 5 per row), `ui.png` (8 status and tile icons, 16 px), `sound.png` (sound on and off, 16 px). The build inlines them as data URLs. |
-| `test/` | `check-gear.js` (28 rule tests), `check-run.js` (fuzz), `check-coach.js` (practice), `sim.js` (balance bot). |
+| `src/art/` | Pixel art sheets: `portraits.png` (14 portraits, 48 px, in three rows: neutral, eyes closed, mouth open), `items.png` (20 item icons, 16 px, 5 per row), `ui.png` (8 status and tile icons, 16 px), `sound.png` (sound on and off, 16 px). The build inlines them as data URLs. |
+| `test/` | `check-gear.js` (29 rule tests), `check-run.js` (fuzz), `check-coach.js` (practice), `sim.js` (balance bot). |
 | `tools/` | `build.py`, plus browser checks and store art that need Playwright. |
 | `store/itch-page.md` | Store page text and upload settings. |
 

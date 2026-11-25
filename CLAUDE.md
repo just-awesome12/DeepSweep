@@ -27,7 +27,7 @@ Deepsweep is a Minesweeper roguelike that ships as one self-contained HTML file.
 - A boss that acts on the board (`act` in `BOSSES`) must never cost a heart or hide a tile for good. The Crusher's rubble and the Jammer's jammed clue can always be undone safely, which is what keeps the dead-end count true. The balance bot in `test/sim.js` undoes them before it reads the board.
 - The generator caps the enumeration frontier at 22 tiles. Raising it makes some boards very slow.
 - `Profile.KEY` is versioned. Bump it only when the saved shape changes, because that resets every player's progress.
-- The art sheets in `src/art/` are read by cell position. `items.png` follows the order of `ITEMS`; `portraits.png` and `ui.png` follow `PORTRAITS` and `UI_ICONS` in `ui.js`. Add or reorder an item, boss or character and the sheet together. The sources are in the Pixelwright project "Deepsweep".
+- The art sheets in `src/art/` are read by cell position. `items.png` follows the order of `ITEMS`; `portraits.png` and `ui.png` follow `PORTRAITS` and `UI_ICONS` in `ui.js`. `portraits.png` has three rows per portrait: neutral, eyes closed, mouth open. The blink and talk animations in the CSS step between them, so a new portrait needs all three. Add or reorder an item, boss or character and the sheet together. The sources are in the Pixelwright project "Deepsweep"; the sprite "portraits" holds the three rows as frames.
 - Show sprites at whole-number zoom only (`--z`), or the pixels come out uneven.
 - The game is its own visual identity. Do not copy art, logos or layouts from other games.
 
