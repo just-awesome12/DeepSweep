@@ -500,6 +500,7 @@ class GameUI {
 
     let mood = '';
     if (ended) mood = run.phase === PHASE.WON ? 'win' : 'lose';
+    else if (run.phase === PHASE.BOSS_GATE && before.phase !== PHASE.BOSS_GATE) mood = 'gate';
     else if (lostHearts > 0) mood = run.hearts === 1 ? 'low' : 'trap';
     else if (buried.length || jams.length) mood = 'boss';
     else if (caches.length) mood = 'cache';
@@ -803,13 +804,17 @@ class GameUI {
       h('div', { class: 'chips goals' }, ...done.map((ok, k) => h('span', { class: `chip${ok ? ' done' : k === current ? ' now' : ''}`, text: ok ? `${k + 1} done` : String(k + 1) }))));
   }
 
-  /** @returns {HTMLElement|null} The chosen character with a speech bubble. Null in practice, where the coach talks. */
-  #buddyDock() {
+  /**
+   * The chosen character with a speech bubble.
+   * @param {boolean} [right] Put the portrait on the right, to face a boss.
+   * @returns {HTMLElement|null} Null in practice, where the coach talks.
+   */
+  #buddyDock(right = false) {
     const run = this.#run;
     if (run.practice) return null;
     const { buddy, said } = this.#change;
     const low = !run.over && run.hearts === 1 && run.maxHearts > 1;
-    return h('div', { class: `buddy${low ? ' low' : ''}` },
+    return h('div', { class: `buddy${low ? ' low' : ''}${right ? ' right' : ''}` },
       h('span', { class: 'frame' }, sprite('face', run.character.id, `big${buddy ? ` m-${buddy}` : ''}`)),
       h('p', { class: `bubble${said ? ' say' : ''}` }, h('b', { text: run.character.name }), this.#buddyText));
   }
@@ -1000,7 +1005,14 @@ class GameUI {
   #gateView() {
     const run = this.#run;
     const immune = run.character.ability === 'ignoreBoss';
-    const parts = [h('h2', { text: 'Boss gate' }), ...run.bosses.map((boss) => h('div', { class: 'who' }, sprite('face', boss.id, 'big'), h('p', {}, h('b', { text: boss.name }), ` blocks the way. ${boss.text}`)))];
+    const parts = [h('h2', { text: 'Boss gate' }),
+      ...run.bosses.flatMap((boss) => [
+        h('div', { class: 'buddy foe' },
+          h('span', { class: 'frame' }, sprite('face', boss.id, 'big')),
+          h('p', { class: `bubble${this.#change.newView ? ' say' : ''}` }, h('b', { text: boss.name }), boss.taunt)),
+        h('p', {}, h('b', { text: boss.name }), ` blocks the way. ${boss.text}`),
+      ]),
+      this.#buddyDock(true)];
     if (immune) parts.push(h('p', { class: 'reward', text: `${run.character.name} walks straight through.` }));
     if (!run.tollSettled) {
       parts.push(h('div', { class: 'row' },
