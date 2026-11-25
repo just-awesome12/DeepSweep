@@ -524,16 +524,17 @@ const ITEMS = Object.freeze([
 /**
  * Bosses. `act` marks a boss that also acts on the board: every `every` safe flips it changes `count` tiles.
  * What each one does is in `Run`. Nothing a boss does to the board costs a heart or hides a tile for good.
- * @type {ReadonlyArray<{id:string, name:string, text:string, act?:{every:number, count:number}}>}
+ * `taunt` is what the boss says at the gate. It is personality only and states no rule.
+ * @type {ReadonlyArray<{id:string, taunt:string, name:string, text:string, act?:{every:number, count:number}}>}
  */
 const BOSSES = Object.freeze([
-  { id: 'crusher', name: 'The Crusher', act: Object.freeze({ every: 4, count: 2 }), text: 'Each trap costs 2 hearts on this floor. Every 4 safe flips, it buries 2 open tiles again. Flip them to dig them out.' },
-  { id: 'hoarder', name: 'The Hoarder', text: 'You win only after both caches on this floor are found.' },
-  { id: 'jammer', name: 'The Jammer', act: Object.freeze({ every: 4, count: 1 }), text: `No item works on this floor. Gear counts as items. Every 4 safe flips, it jams a clue. Tap the clue to clear it for ${RULES.jamCost} streak.` },
-  { id: 'toll', name: 'The Tollkeeper', text: 'On entry, pay 3 coins or lose 1 heart.' },
-  { id: 'saboteur', name: 'The Saboteur', text: 'On entry, discard half of your items, rounded up. You choose which.' },
-  { id: 'rust', name: 'The Rust', text: 'On entry, discard every single-use tool. Gear stays.' },
-  { id: 'brute', name: 'The Brute', text: 'On entry, lose 1 heart. It cannot take your last one.' },
+  { id: 'crusher', taunt: 'I flatten bigger diggers than you.', name: 'The Crusher', act: Object.freeze({ every: 4, count: 2 }), text: 'Each trap costs 2 hearts on this floor. Every 4 safe flips, it buries 2 open tiles again. Flip them to dig them out.' },
+  { id: 'hoarder', taunt: 'Mine. All of it. Mine.', name: 'The Hoarder', text: 'You win only after both caches on this floor are found.' },
+  { id: 'jammer', taunt: 'Bzzt. Your toys bore me.', name: 'The Jammer', act: Object.freeze({ every: 4, count: 1 }), text: `No item works on this floor. Gear counts as items. Every 4 safe flips, it jams a clue. Tap the clue to clear it for ${RULES.jamCost} streak.` },
+  { id: 'toll', taunt: 'Nobody passes for free.', name: 'The Tollkeeper', text: 'On entry, pay 3 coins or lose 1 heart.' },
+  { id: 'saboteur', taunt: 'Nice kit. Shame about it.', name: 'The Saboteur', text: 'On entry, discard half of your items, rounded up. You choose which.' },
+  { id: 'rust', taunt: 'Everything rots. You too.', name: 'The Rust', text: 'On entry, discard every single-use tool. Gear stays.' },
+  { id: 'brute', taunt: 'I hit first. I talk later.', name: 'The Brute', text: 'On entry, lose 1 heart. It cannot take your last one.' },
 ].map(Object.freeze));
 
 /**
@@ -589,5 +590,117 @@ function itemDeck() {
   return ITEMS.flatMap((item) => Array.from({ length: item.copies }, () => item.id));
 }
 
-const Deepsweep = { Rng, KIND, Board, Solver, Generator, cacheOdds, GRID, FLOORS, RULES, ITEMS, BOSSES, CHARACTERS, DEPTHS, floorConfig, itemDeck };
+/**
+ * What each character says on the play screen, by moment. Personality only: no line states a rule or gives a hint.
+ * Moments: start (new floor), safe (safe flips), trap (heart lost), low (one heart left), cache, mult (multiplier up),
+ * boss (a boss acts on the board), gate (reply to the boss at its gate), clear (floor cleared), win and lose (run over).
+ * @type {Readonly<Object<string, Readonly<Object<string, ReadonlyArray<string>>>>>}
+ */
+const VOICES = Object.freeze(Object.fromEntries(Object.entries({
+  sapper: {
+    start: ['New floor. Same steady hands.', 'Deep breath. Then we dig.'],
+    safe: ['Clean work.', 'Steady. I like steady.', 'That is how it is done.'],
+    trap: ['Ow. That one bites.', 'I walk it off. I always do.'],
+    low: ['One heart. I know this feeling.'],
+    cache: ['Now that is a find.', 'Shiny. I approve.'],
+    mult: ['We are on a roll.'],
+    boss: ['Rude. Very rude.'],
+    gate: ['I dig past worse before lunch.'],
+    clear: ['Floor swept. Next.'],
+    win: ['Job done. Tea time.'],
+    lose: ['Not my day. Tomorrow is.'],
+  },
+  gambler: {
+    start: ['Fresh table. I feel lucky.', 'Deal me in.'],
+    safe: ['The house loses again.', 'I call that skill.', 'Hot hand. Do not touch it.'],
+    trap: ['Bad beat.', 'The dice owe me one.'],
+    low: ['All in. No pressure.'],
+    cache: ['Jackpot, baby.', 'Come to me, coins.'],
+    mult: ['Raise the stakes!'],
+    boss: ['That is cheating. I respect it.'],
+    gate: ['I like these odds. Deal.'],
+    clear: ['I cash out on top.'],
+    win: ['The house always loses.'],
+    lose: ['Busted. One more round?'],
+  },
+  surveyor: {
+    start: ['New ground. My pencil is sharp.', 'I measure twice. You flip once.'],
+    safe: ['As charted.', 'Noted and filed.', 'Tidy. Very tidy.'],
+    trap: ['My map does not show that.', 'I need a new pencil.'],
+    low: ['The margin for error is thin.'],
+    cache: ['X marks the spot.', 'One for the ledger.'],
+    mult: ['The numbers climb. Good.'],
+    boss: ['That ruins my survey.'],
+    gate: ['You are not on my map. Yet.'],
+    clear: ['Map complete. Lovely.'],
+    win: ['Every corner is on the map.'],
+    lose: ['The map ends here.'],
+  },
+  daredevil: {
+    start: ['Finally. I was bored.', 'No brakes. Go.'],
+    safe: ['Faster!', 'Too easy.', 'Is that all it has?'],
+    trap: ['Ha! Do that again.', 'That tickles.'],
+    low: ['One heart. Best part.'],
+    cache: ['Yes! Big one!', 'Gold tastes like winning.'],
+    mult: ['Now we are flying!'],
+    boss: ['Oh, it fights back. Good.'],
+    gate: ['Finally, a real fight!'],
+    clear: ['Done already? More!'],
+    win: ['Again. Right now.'],
+    lose: ['Worth it.'],
+  },
+  ghost: {
+    start: ['Quiet down here. I like it.', 'Boo. Sorry. Habit.'],
+    safe: ['Light as air.', 'Nobody hears a thing.', 'I float on.'],
+    trap: ['That stings. Even me.', 'I thought I was past this.'],
+    low: ['Half gone already. I know the feeling.'],
+    cache: ['Treasure. I cannot take it with me.', 'Shiny things still work on me.'],
+    mult: ['I feel a chill. A good one.'],
+    boss: ['How scary. I mean that kindly.'],
+    gate: ['Excuse me. Coming through.'],
+    clear: ['This floor is haunted now.'],
+    win: ['I rest easy tonight.'],
+    lose: ['Well. I am used to it.'],
+  },
+  banker: {
+    start: ['Time is coins. Begin.', 'I expect a return on this floor.'],
+    safe: ['A sound investment.', 'Low risk. I approve.', 'The books balance.'],
+    trap: ['A loss. I write it down.', 'That comes out of your share.'],
+    low: ['We are overdrawn on hearts.'],
+    cache: ['Deposit accepted.', 'Compound interest. Lovely.'],
+    mult: ['The rate goes up. Good.'],
+    boss: ['I bill it for that.'],
+    gate: ['You get my bill after this.'],
+    clear: ['Account closed. Next branch.'],
+    win: ['A record quarter.'],
+    lose: ['Bankrupt. I blame the market.'],
+  },
+  medic: {
+    start: ['Gloves on. Let us begin.', 'Tell me where it hurts later.'],
+    safe: ['Healthy tile.', 'Good pulse on this floor.', 'No stitches needed.'],
+    trap: ['Ouch. Hold still.', 'I have a bandage for that.'],
+    low: ['Critical, but stable.'],
+    cache: ['That is good for the heart.', 'Just what the doctor ordered.'],
+    mult: ['Strong vitals!'],
+    boss: ['That is bad for my blood pressure.'],
+    gate: ['This hurts you, not me.'],
+    clear: ['A clean bill of health.'],
+    win: ['Everyone lives. Good shift.'],
+    lose: ['I call it. Time of loss: now.'],
+  },
+}).map(([id, moods]) => [id, Object.freeze(Object.fromEntries(Object.entries(moods).map(([mood, lines]) => [mood, Object.freeze(lines)])))])));
+
+/**
+ * One line for a character and a moment. Lines rotate with `turn`, so no random number is used.
+ * @param {string} id Character id. An unknown id speaks as the first character.
+ * @param {string} mood A moment from `VOICES`.
+ * @param {number} [turn] How many lines the character has said so far.
+ * @returns {string} The line, or an empty string for an unknown moment.
+ */
+function voiceLine(id, mood, turn = 0) {
+  const lines = (VOICES[id] || VOICES[CHARACTERS[0].id])[mood] || [];
+  return lines.length ? lines[Math.abs(Math.trunc(turn)) % lines.length] : '';
+}
+
+const Deepsweep = { Rng, KIND, Board, Solver, Generator, cacheOdds, GRID, FLOORS, RULES, ITEMS, BOSSES, CHARACTERS, DEPTHS, VOICES, voiceLine, floorConfig, itemDeck };
 if (typeof module !== 'undefined') module.exports = Deepsweep;
