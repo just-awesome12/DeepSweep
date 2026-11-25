@@ -1,6 +1,6 @@
 // Rule tests for the streak multiplier and each rule-changing gear piece.
 const assert = require('assert');
-const { Run, PHASE, MODE, Solver, KIND, RULES, CHARACTERS, Profile, ACHIEVEMENTS, dailyRun, dailyCard, starsFor } = require('./load.js')();
+const { VOICES, voiceLine, Run, PHASE, MODE, Solver, KIND, RULES, CHARACTERS, Profile, ACHIEVEMENTS, dailyRun, dailyCard, starsFor } = require('./load.js')();
 /** A plain run that starts with the given items. */
 const withItems = (seed, ...items) => { const run = new Run(seed); run.items.push(...items); return run; };
 const cells = (run, kind) => [...run.open.keys()].filter((i) => !run.open[i] && run.found[i] < 0 && run.board.kind(i) === kind);
@@ -122,4 +122,10 @@ const safeOnes = (run) => cells(run, KIND.SAFE).filter((i) => !run.hasRubble(i))
   const hearts = run.hearts; const streak = run.streak; assert(run.clearJam(jam)); assert(!run.isJammed(jam));
   assert.equal(run.streak, Math.max(0, streak - RULES.jamCost)); assert.equal(run.hearts, hearts); assert(!run.clearJam(jam), 'a clear clue cannot be cleared twice');
   ok('The Jammer hides a clue; clearing it costs streak only'); }
+{ const moods = Object.keys(VOICES.sapper);
+  for (const c of CHARACTERS) { assert.deepEqual(Object.keys(VOICES[c.id] || {}), moods, c.name + ' has every moment');
+    for (const mood of moods) { assert(VOICES[c.id][mood].length, c.name + ' ' + mood); for (const line of VOICES[c.id][mood]) assert(line.length <= 44 && !/\d/.test(line), 'short and free of rule numbers: ' + line); } }
+  assert.equal(voiceLine('sapper', 'safe', 0), VOICES.sapper.safe[0]); assert.equal(voiceLine('sapper', 'safe', VOICES.sapper.safe.length), VOICES.sapper.safe[0], 'lines rotate');
+  assert.equal(voiceLine('nobody', 'trap', 1), VOICES.sapper.trap[1]); assert.equal(voiceLine('sapper', 'nothing'), '');
+  ok('Every character has a line for every moment'); }
 console.log(n, 'rule tests passed');

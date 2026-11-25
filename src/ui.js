@@ -263,6 +263,8 @@ class GameUI {
   /** Days shown in the daily strip on the title screen. */
   static STRIP_DAYS = 14;
   static COLS = 'ABCDEFGHIJ';
+  /** The companion says a new line on every this many safe flips. Between them it only nods. */
+  static CHAT_EVERY = 4;
 
   /** @type {Run|null} */ #run = null;
   #profile = new Profile();
@@ -277,10 +279,13 @@ class GameUI {
   /** Safe flips in a row, for the climbing flip sound. */ #pitch = 0;
   /** What the run that just ended paid. @type {RunRewards|null} */ #rewards = null;
   /** Note under the daily card once the player copies it. */ #shareNote = '';
+  /** What the companion says now. It stays until the next line. */ #buddyText = '';
+  /** Lines the companion has said, to rotate them. */ #talk = 0;
+  /** Safe flips since the run began, to pace the companion. */ #safeFlips = 0;
   /** Changes made by the last action, used once by the next render. */
   #change = GameUI.#noChange();
 
-  static #noChange() { return { fresh: new Set(), found: new Set(), gems: new Set(), origin: -1, events: [], coinsFrom: null, newView: false, stepped: false }; }
+  static #noChange() { return { fresh: new Set(), found: new Set(), gems: new Set(), origin: -1, events: [], coinsFrom: null, newView: false, stepped: false, buddy: '', said: false }; }
 
   /** @param {Document} doc */
   constructor(doc) {
@@ -322,6 +327,19 @@ class GameUI {
     this.#pitch = 0;
     this.#rewards = null;
     this.#shareNote = '';
+    this.#talk = 0;
+    this.#safeFlips = 0;
+    this.#speak('start');
+  }
+
+  /**
+   * Give the companion a new line and the motion that goes with it.
+   * @param {string} mood A moment from `VOICES`.
+   */
+  #speak(mood) {
+    this.#buddyText = voiceLine(this.#run.character.id, mood, this.#talk++);
+    this.#change.buddy = mood;
+    this.#change.said = true;
   }
 
   /**
@@ -479,6 +497,18 @@ class GameUI {
     this.#pitch = safeFlip ? this.#pitch + 1 : (sound === 'tap' || sound === 'mark') ? this.#pitch : 0;
     if (!sameBoard) this.#pitch = 0;
     this.#sfx.play(sound, safeFlip ? Math.min(this.#pitch - 1, 14) : 0);
+
+    let mood = '';
+    if (ended) mood = run.phase === PHASE.WON ? 'win' : 'lose';
+    else if (lostHearts > 0) mood = run.hearts === 1 ? 'low' : 'trap';
+    else if (buried.length || jams.length) mood = 'boss';
+    else if (caches.length) mood = 'cache';
+    else if (multUp) mood = 'mult';
+    else if (justCleared) mood = 'clear';
+    else if (run.phase === PHASE.FLOOR && !sameBoard) mood = 'start';
+    else if (safeFlip && ++this.#safeFlips % GameUI.CHAT_EVERY === 0) mood = 'safe';
+    if (mood) this.#speak(mood);
+    else if (safeFlip) change.buddy = 'safe';
   }
 
   /** Run the effects for the last action, once the new view is on the page. @param {Object[]} events */
@@ -773,6 +803,17 @@ class GameUI {
       h('div', { class: 'chips goals' }, ...done.map((ok, k) => h('span', { class: `chip${ok ? ' done' : k === current ? ' now' : ''}`, text: ok ? `${k + 1} done` : String(k + 1) }))));
   }
 
+  /** @returns {HTMLElement|null} The chosen character with a speech bubble. Null in practice, where the coach talks. */
+  #buddyDock() {
+    const run = this.#run;
+    if (run.practice) return null;
+    const { buddy, said } = this.#change;
+    const low = !run.over && run.hearts === 1 && run.maxHearts > 1;
+    return h('div', { class: `buddy${low ? ' low' : ''}` },
+      h('span', { class: 'frame' }, sprite('face', run.character.id, `big${buddy ? ` m-${buddy}` : ''}`)),
+      h('p', { class: `bubble${said ? ' say' : ''}` }, h('b', { text: run.character.name }), this.#buddyText));
+  }
+
   /** @returns {HTMLElement|null} */
   #coachBox(advice) {
     return advice ? h('div', { class: 'coach-box' }, h('b', { text: 'Coach' }), advice.text) : null;
@@ -840,6 +881,7 @@ class GameUI {
       stake,
       h('p', { class: 'hint' }, 'Cache 1 is in ', h('b', { text: `row ${row + 1}` }), '. Cache 2 is in ', h('b', { text: `column ${GameUI.COLS[col]}` }), `.${extra}`),
       grid,
+      this.#buddyDock(),
       h('p', { class: `message ${tone}`.trim(), text: prompt || `${board.safeCount - run.openCount} safe tiles left.` }),
       h('div', { class: 'row' },
         h('div', { class: 'seg', role: 'group', 'aria-label': 'Tap action' },
@@ -999,7 +1041,8 @@ class GameUI {
     ] : [];
     return [
       h('h2', { text: `${heading}${run.mode === MODE.DAILY ? ` · daily ${dailyRun().key}` : ''}` }),
-      h('div', { class: 'who' }, sprite('face', run.character.id, 'big'), h('p', { text: story })),
+      this.#buddyDock(),
+      h('p', { text: story }),
       h('div', { class: 'tally' },
         line('Coins earned', run.stats.earned),
         line(`Hearts ${run.hearts} x ${RULES.heartPoints}`, run.hearts * RULES.heartPoints),

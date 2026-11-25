@@ -215,6 +215,13 @@ button.sound { min-width: 44px; padding: 8px 10px 10px; display: grid; place-ite
 .boss .who + .who { margin-top: 10px; }
 .art-row { display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; }
 button.with-icon { display: flex; gap: 10px; align-items: center; justify-content: center; }
+/* The companion: the chosen character under the board, with a speech bubble. */
+.buddy { display: flex; gap: 14px; align-items: flex-end; }
+.buddy .frame { flex: none; display: grid; place-items: center; width: 108px; height: 108px; background: var(--hole); border: 3px solid var(--edge); border-radius: var(--radius); box-shadow: 0 4px 0 var(--edge); overflow: hidden; }
+.buddy.low .frame { border-color: var(--red); }
+.bubble { position: relative; flex: 1; min-width: 0; margin-bottom: 18px; padding: 8px 12px 10px; background: var(--ink); color: var(--edge); border: 3px solid var(--edge); border-radius: var(--radius); box-shadow: 0 4px 0 var(--edge); font-size: 1.1rem; line-height: 1.15; transform-origin: 0 100%; }
+.bubble::before { content: ""; position: absolute; left: -10px; bottom: 14px; width: 14px; height: 14px; background: var(--ink); border-left: 3px solid var(--edge); border-bottom: 3px solid var(--edge); transform: rotate(45deg); }
+.bubble b { display: block; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; color: #216c9c; }
 
 /* effects layer */
 #fx { position: fixed; inset: 0; z-index: 40; pointer-events: none; overflow: hidden; }
@@ -249,6 +256,21 @@ button.with-icon { display: flex; gap: 10px; align-items: center; justify-conten
   .cell.odds-high { animation: glow 1s ease-in-out infinite; }
   .meter.hunt.hot .mult, .stake .pay { animation: throb 0.8s ease-in-out infinite; }
   .flash { animation: flash 0.35s ease-out forwards; }
+  .buddy .spr { animation: bob 1.6s steps(2) infinite; }
+  .buddy.low .spr { animation: tremble 0.24s steps(2) infinite; }
+  .buddy .spr.m-safe, .buddy .spr.m-start { animation: nod 0.3s steps(3), bob 1.6s steps(2) 0.3s infinite; }
+  .buddy .spr.m-cache, .buddy .spr.m-mult, .buddy .spr.m-clear, .buddy .spr.m-win { animation: hop 0.6s steps(6), bob 1.6s steps(2) 0.6s infinite; }
+  .buddy .spr.m-trap, .buddy .spr.m-lose { animation: jolt 0.45s steps(5), bob 1.6s steps(2) 0.45s infinite; }
+  .buddy .spr.m-low { animation: jolt 0.45s steps(5), tremble 0.24s steps(2) 0.45s infinite; }
+  .buddy .spr.m-boss { animation: lean 0.6s steps(4), bob 1.6s steps(2) 0.6s infinite; }
+  .bubble.say { animation: say 0.18s steps(3); }
+  @keyframes bob { 50% { transform: translateY(-3px); } }
+  @keyframes nod { 40% { transform: translateY(6px); } }
+  @keyframes hop { 30% { transform: translateY(-18px); } 60% { transform: translateY(0); } 80% { transform: translateY(-9px); } }
+  @keyframes jolt { 20% { transform: translateX(-9px); } 40% { transform: translateX(9px); } 60% { transform: translateX(-6px); } 80% { transform: translateX(6px); } }
+  @keyframes tremble { 50% { transform: translateX(3px); } }
+  @keyframes lean { 50% { transform: translateX(-6px) rotate(-6deg); } }
+  @keyframes say { from { transform: scale(0.6); opacity: 0; } }
   @keyframes wave { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
   @keyframes flip { from { transform: rotateX(90deg) scale(0.8); } 60% { transform: rotateX(-12deg) scale(1.12); } }
   @keyframes slam { from { transform: scale(1.7) rotate(-8deg); opacity: 0; } 60% { transform: scale(0.92) rotate(2deg); opacity: 1; } }

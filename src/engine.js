@@ -589,5 +589,110 @@ function itemDeck() {
   return ITEMS.flatMap((item) => Array.from({ length: item.copies }, () => item.id));
 }
 
-const Deepsweep = { Rng, KIND, Board, Solver, Generator, cacheOdds, GRID, FLOORS, RULES, ITEMS, BOSSES, CHARACTERS, DEPTHS, floorConfig, itemDeck };
+/**
+ * What each character says on the play screen, by moment. Personality only: no line states a rule or gives a hint.
+ * Moments: start (new floor), safe (safe flips), trap (heart lost), low (one heart left), cache, mult (multiplier up),
+ * boss (a boss acts on the board), clear (floor cleared), win and lose (run over).
+ * @type {Readonly<Object<string, Readonly<Object<string, ReadonlyArray<string>>>>>}
+ */
+const VOICES = Object.freeze(Object.fromEntries(Object.entries({
+  sapper: {
+    start: ['New floor. Same steady hands.', 'Deep breath. Then we dig.'],
+    safe: ['Clean work.', 'Steady. I like steady.', 'That is how it is done.'],
+    trap: ['Ow. That one bites.', 'I walk it off. I always do.'],
+    low: ['One heart. I know this feeling.'],
+    cache: ['Now that is a find.', 'Shiny. I approve.'],
+    mult: ['We are on a roll.'],
+    boss: ['Rude. Very rude.'],
+    clear: ['Floor swept. Next.'],
+    win: ['Job done. Tea time.'],
+    lose: ['Not my day. Tomorrow is.'],
+  },
+  gambler: {
+    start: ['Fresh table. I feel lucky.', 'Deal me in.'],
+    safe: ['The house loses again.', 'I call that skill.', 'Hot hand. Do not touch it.'],
+    trap: ['Bad beat.', 'The dice owe me one.'],
+    low: ['All in. No pressure.'],
+    cache: ['Jackpot, baby.', 'Come to me, coins.'],
+    mult: ['Raise the stakes!'],
+    boss: ['That is cheating. I respect it.'],
+    clear: ['I cash out on top.'],
+    win: ['The house always loses.'],
+    lose: ['Busted. One more round?'],
+  },
+  surveyor: {
+    start: ['New ground. My pencil is sharp.', 'I measure twice. You flip once.'],
+    safe: ['As charted.', 'Noted and filed.', 'Tidy. Very tidy.'],
+    trap: ['My map does not show that.', 'I need a new pencil.'],
+    low: ['The margin for error is thin.'],
+    cache: ['X marks the spot.', 'One for the ledger.'],
+    mult: ['The numbers climb. Good.'],
+    boss: ['That ruins my survey.'],
+    clear: ['Map complete. Lovely.'],
+    win: ['Every corner is on the map.'],
+    lose: ['The map ends here.'],
+  },
+  daredevil: {
+    start: ['Finally. I was bored.', 'No brakes. Go.'],
+    safe: ['Faster!', 'Too easy.', 'Is that all it has?'],
+    trap: ['Ha! Do that again.', 'That tickles.'],
+    low: ['One heart. Best part.'],
+    cache: ['Yes! Big one!', 'Gold tastes like winning.'],
+    mult: ['Now we are flying!'],
+    boss: ['Oh, it fights back. Good.'],
+    clear: ['Done already? More!'],
+    win: ['Again. Right now.'],
+    lose: ['Worth it.'],
+  },
+  ghost: {
+    start: ['Quiet down here. I like it.', 'Boo. Sorry. Habit.'],
+    safe: ['Light as air.', 'Nobody hears a thing.', 'I float on.'],
+    trap: ['That stings. Even me.', 'I thought I was past this.'],
+    low: ['Half gone already. I know the feeling.'],
+    cache: ['Treasure. I cannot take it with me.', 'Shiny things still work on me.'],
+    mult: ['I feel a chill. A good one.'],
+    boss: ['How scary. I mean that kindly.'],
+    clear: ['This floor is haunted now.'],
+    win: ['I rest easy tonight.'],
+    lose: ['Well. I am used to it.'],
+  },
+  banker: {
+    start: ['Time is coins. Begin.', 'I expect a return on this floor.'],
+    safe: ['A sound investment.', 'Low risk. I approve.', 'The books balance.'],
+    trap: ['A loss. I write it down.', 'That comes out of your share.'],
+    low: ['We are overdrawn on hearts.'],
+    cache: ['Deposit accepted.', 'Compound interest. Lovely.'],
+    mult: ['The rate goes up. Good.'],
+    boss: ['I bill it for that.'],
+    clear: ['Account closed. Next branch.'],
+    win: ['A record quarter.'],
+    lose: ['Bankrupt. I blame the market.'],
+  },
+  medic: {
+    start: ['Gloves on. Let us begin.', 'Tell me where it hurts later.'],
+    safe: ['Healthy tile.', 'Good pulse on this floor.', 'No stitches needed.'],
+    trap: ['Ouch. Hold still.', 'I have a bandage for that.'],
+    low: ['Critical, but stable.'],
+    cache: ['That is good for the heart.', 'Just what the doctor ordered.'],
+    mult: ['Strong vitals!'],
+    boss: ['That is bad for my blood pressure.'],
+    clear: ['A clean bill of health.'],
+    win: ['Everyone lives. Good shift.'],
+    lose: ['I call it. Time of loss: now.'],
+  },
+}).map(([id, moods]) => [id, Object.freeze(Object.fromEntries(Object.entries(moods).map(([mood, lines]) => [mood, Object.freeze(lines)])))])));
+
+/**
+ * One line for a character and a moment. Lines rotate with `turn`, so no random number is used.
+ * @param {string} id Character id. An unknown id speaks as the first character.
+ * @param {string} mood A moment from `VOICES`.
+ * @param {number} [turn] How many lines the character has said so far.
+ * @returns {string} The line, or an empty string for an unknown moment.
+ */
+function voiceLine(id, mood, turn = 0) {
+  const lines = (VOICES[id] || VOICES[CHARACTERS[0].id])[mood] || [];
+  return lines.length ? lines[Math.abs(Math.trunc(turn)) % lines.length] : '';
+}
+
+const Deepsweep = { Rng, KIND, Board, Solver, Generator, cacheOdds, GRID, FLOORS, RULES, ITEMS, BOSSES, CHARACTERS, DEPTHS, VOICES, voiceLine, floorConfig, itemDeck };
 if (typeof module !== 'undefined') module.exports = Deepsweep;
