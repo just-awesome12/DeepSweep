@@ -200,7 +200,7 @@ class Fx {
   }
 }
 
-/** Cell order of the portrait sheet, by character or boss id. One 48 px portrait per cell, in one row. */
+/** Column order of the portrait sheet, by character or boss id. One 48 px portrait per cell. Rows: neutral, eyes closed, mouth open. */
 const PORTRAITS = Object.freeze(['sapper', 'gambler', 'surveyor', 'daredevil', 'ghost', 'banker', 'medic', 'saboteur', 'brute', 'crusher', 'hoarder', 'jammer', 'toll', 'rust']);
 /** Cell order of the status strip. One 16 px icon per cell. */
 const UI_ICONS = Object.freeze(['heart', 'lost', 'coin', 'trap', 'cache', 'gem', 'mark', 'streak']);
@@ -814,7 +814,7 @@ class GameUI {
     if (run.practice) return null;
     const { buddy, said } = this.#change;
     const low = !run.over && run.hearts === 1 && run.maxHearts > 1;
-    return h('div', { class: `buddy${low ? ' low' : ''}${right ? ' right' : ''}` },
+    return h('div', { class: `buddy${low ? ' low' : ''}${right ? ' right' : ''}${said ? ' talk' : ''}` },
       h('span', { class: 'frame' }, sprite('face', run.character.id, `big${buddy ? ` m-${buddy}` : ''}`)),
       h('p', { class: `bubble${said ? ' say' : ''}` }, h('b', { text: run.character.name }), this.#buddyText));
   }
@@ -1007,7 +1007,7 @@ class GameUI {
     const immune = run.character.ability === 'ignoreBoss';
     const parts = [h('h2', { text: 'Boss gate' }),
       ...run.bosses.flatMap((boss) => [
-        h('div', { class: 'buddy foe' },
+        h('div', { class: `buddy foe${this.#change.newView ? ' talk' : ''}` },
           h('span', { class: 'frame' }, sprite('face', boss.id, 'big')),
           h('p', { class: `bubble${this.#change.newView ? ' say' : ''}` }, h('b', { text: boss.name }), boss.taunt)),
         h('p', {}, h('b', { text: boss.name }), ` blocks the way. ${boss.text}`),

@@ -201,7 +201,8 @@ button.sound { min-width: 44px; padding: 8px 10px 10px; display: grid; place-ite
 .dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
 .dots i.on { background: var(--gold); }
 
-/* Pixel art. The build fills in the sheets as data URLs. --x and --y pick the cell, --z is a whole-number zoom. */
+/* Pixel art. The build fills in the sheets as data URLs. --x and --y pick the cell, --z is a whole-number zoom.
+   The portrait sheet has three rows: neutral, eyes closed, mouth open. The blink and talk animations step between them. */
 /*__ART__*/
 .spr { --y: 0; display: inline-block; flex: none; width: calc(var(--s) * var(--z)); height: calc(var(--s) * var(--z)); background-repeat: no-repeat; image-rendering: pixelated;
   background-size: calc(var(--w) * var(--z)) auto; background-position: calc(var(--x) * var(--s) * var(--z) * -1) calc(var(--y) * var(--s) * var(--z) * -1); }
@@ -278,16 +279,19 @@ button.with-icon { display: flex; gap: 10px; align-items: center; justify-conten
   .cell.odds-high { animation: glow 1s ease-in-out infinite; }
   .meter.hunt.hot .mult, .stake .pay { animation: throb 0.8s ease-in-out infinite; }
   .flash { animation: flash 0.35s ease-out forwards; }
-  .buddy .spr { animation: bob 1.6s steps(2) infinite; }
-  .buddy.low .spr { animation: tremble 0.24s steps(2) infinite; }
-  .buddy .spr.m-safe, .buddy .spr.m-start { animation: nod 0.3s steps(3), bob 1.6s steps(2) 0.3s infinite; }
-  .buddy .spr.m-cache, .buddy .spr.m-mult, .buddy .spr.m-clear, .buddy .spr.m-win { animation: hop 0.6s steps(6), bob 1.6s steps(2) 0.6s infinite; }
-  .buddy .spr.m-trap, .buddy .spr.m-lose { animation: jolt 0.45s steps(5), bob 1.6s steps(2) 0.45s infinite; }
-  .buddy .spr.m-low { animation: jolt 0.45s steps(5), tremble 0.24s steps(2) 0.45s infinite; }
-  .buddy .spr.m-boss { animation: lean 0.6s steps(4), bob 1.6s steps(2) 0.6s infinite; }
-  .buddy.foe .spr { animation: loom 2s steps(2) infinite; }
+  .buddy .spr { --move: bob 1.6s steps(2) infinite; --face: blink 4.2s step-end infinite; animation: var(--move), var(--face); }
+  .buddy.low .spr { --move: tremble 0.24s steps(2) infinite; }
+  .buddy .spr.m-safe, .buddy .spr.m-start, .buddy .spr.m-gate { --move: nod 0.3s steps(3), bob 1.6s steps(2) 0.3s infinite; }
+  .buddy .spr.m-cache, .buddy .spr.m-mult, .buddy .spr.m-clear, .buddy .spr.m-win { --move: hop 0.6s steps(6), bob 1.6s steps(2) 0.6s infinite; }
+  .buddy .spr.m-trap, .buddy .spr.m-lose { --move: jolt 0.45s steps(5), bob 1.6s steps(2) 0.45s infinite; }
+  .buddy .spr.m-low { --move: jolt 0.45s steps(5), tremble 0.24s steps(2) 0.45s infinite; }
+  .buddy .spr.m-boss { --move: lean 0.6s steps(4), bob 1.6s steps(2) 0.6s infinite; }
+  .buddy.foe .spr { --move: loom 2s steps(2) infinite; --face: blink 5.3s step-end infinite; }
+  .buddy.talk .spr { --face: talk 0.26s step-end 5, blink 4.2s step-end 1.3s infinite; }
   .bubble.say { animation: say 0.18s steps(3); }
   @keyframes loom { 50% { transform: translateY(-6px); } }
+  @keyframes blink { 0%, 100% { background-position-y: 0; } 95% { background-position-y: calc(var(--s) * var(--z) * -1); } }
+  @keyframes talk { 0% { background-position-y: calc(var(--s) * var(--z) * -2); } 50%, 100% { background-position-y: 0; } }
   @keyframes bob { 50% { transform: translateY(-3px); } }
   @keyframes nod { 40% { transform: translateY(6px); } }
   @keyframes hop { 30% { transform: translateY(-18px); } 60% { transform: translateY(0); } 80% { transform: translateY(-9px); } }
