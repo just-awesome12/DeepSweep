@@ -35,11 +35,11 @@ Every floor buries traps and caches under the same tiles. The numbers tell you h
 - **Gamble.** Each floor names one row and one column that hold a cache. Once the floor is clear, the game shows what the next cache pays. Flip for it, or walk away with your coins.
 - **Gear up.** Spend coins on 20 tools and gear pieces. Some protect you. Others change the rules.
 - **Choose your way down.** At every fork, take the steady path, or the rich vein where caches pay double.
-- **Beat the boss.** One of 7 bosses is shown at the start of each run. Each one breaks a rule you rely on. The Crusher buries tiles you already opened. The Jammer hides your clues.
+- **Beat the boss.** One of 7 bosses is shown at the start of each run. Each one breaks a rule you rely on. The Crusher buries tiles you already opened. The Jammer hides your clues. Every boss taunts you at its gate, and your character talks back.
 
 **More to chase**
 
-- 7 characters with their own rules. Two are free. Earn the rest by winning in a certain way, or buy them with stars from your runs.
+- 7 characters with their own rules and their own voice. Your pick stands under the board, blinks, and has something to say about every trap, cache and streak. Two are free. Earn the rest by winning in a certain way, or buy them with stars from your runs.
 - 21 achievements that point at different ways to play.
 - 5 depth levels. Each adds a rule and raises your score.
 - A daily run on a seed everyone shares. It ends with a result card you can copy and post, and it keeps a day streak.
